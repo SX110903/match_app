@@ -1,0 +1,21 @@
+# Binaries
+bin/
+*.exe
+
+# Environment
+.env
+
+# Keys (NEVER commit RSA keys or AES keys)
+keys/
+*.pem
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
