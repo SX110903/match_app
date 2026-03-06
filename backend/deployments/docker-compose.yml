@@ -1,0 +1,84 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - ../keys:/keys:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../internal/database/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../keys/fullchain.pem:/etc/nginx/ssl/cert.pem:ro
+      - ../keys/privkey.pem:/etc/nginx/ssl/key.pem:ro
+    depends_on:
+      - backend
+    networks:
+      - internal
+      - external
+
+networks:
+  internal:
+    driver: bridge
+  external:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
