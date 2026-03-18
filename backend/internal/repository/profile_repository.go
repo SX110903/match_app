@@ -120,3 +120,46 @@ func (r *profileRepository) UpsertPreferences(ctx context.Context, prefs *domain
 	)
 	return err
 }
+
+func (r *profileRepository) AddPhoto(ctx context.Context, photo *domain.UserPhoto) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO user_photos (id, user_id, url, sort_order, created_at) VALUES (?, ?, ?, ?, ?)`,
+		photo.ID, photo.UserID, photo.URL, photo.SortOrder, photo.CreatedAt,
+	)
+	return err
+}
+
+func (r *profileRepository) DeletePhoto(ctx context.Context, userID, photoID string) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	result, err := r.db.ExecContext(ctx,
+		`DELETE FROM user_photos WHERE id = ? AND user_id = ?`,
+		photoID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *profileRepository) GetPhotoCount(ctx context.Context, userID string) (int, error) {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	var count int
+	err := r.db.GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM user_photos WHERE user_id = ?`, userID,
+	)
+	return count, err
+}

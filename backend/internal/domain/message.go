@@ -14,3 +14,11 @@ type Message struct {
 func (m *Message) IsRead() bool {
 	return m.ReadAt != nil
 }
+
+type UserPhoto struct {
+	ID        string    `db:"id"`
+	UserID    string    `db:"user_id"`
+	URL       string    `db:"url"`
+	SortOrder int       `db:"sort_order"`
+	CreatedAt time.Time `db:"created_at"`
+}

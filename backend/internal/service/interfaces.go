@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/SX110903/match_app/backend/internal/domain"
 )
@@ -50,6 +51,7 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"-"` // set as httpOnly cookie by handler, never in body
 	Requires2FA  bool   `json:"requires_2fa,omitempty"`
 	TempToken    string `json:"temp_token,omitempty"`
 }
@@ -89,4 +91,37 @@ type UpdatePreferencesRequest struct {
 type SwipeResponse struct {
 	IsMatch bool   `json:"is_match"`
 	MatchID string `json:"match_id,omitempty"`
+}
+
+type IMessageService interface {
+	GetMessages(ctx context.Context, userID, matchID string, page, limit int) ([]MessageResponse, error)
+	SendMessage(ctx context.Context, userID, matchID, text string) (*MessageResponse, error)
+	MarkRead(ctx context.Context, userID, matchID string) error
+}
+
+type IPhotoService interface {
+	AddPhoto(ctx context.Context, userID, url string) (*PhotoResponse, error)
+	DeletePhoto(ctx context.Context, userID, photoID string) error
+}
+
+// --- Message DTOs ---
+
+type MessageResponse struct {
+	ID        string     `json:"id"`
+	MatchID   string     `json:"match_id"`
+	SenderID  string     `json:"sender_id"`
+	Text      string     `json:"text"`
+	ReadAt    *time.Time `json:"read_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+// --- Photo DTOs ---
+
+type AddPhotoRequest struct {
+	URL string `json:"url" validate:"required,max=500"`
+}
+
+type PhotoResponse struct {
+	ID  string `json:"id"`
+	URL string `json:"url"`
 }

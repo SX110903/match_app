@@ -177,7 +177,7 @@ func (s *authService) issueTokens(ctx context.Context, userID string) (*LoginRes
 		return nil, fmt.Errorf("storing refresh token: %w", err)
 	}
 
-	return &LoginResponse{AccessToken: accessToken}, nil
+	return &LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
 func (s *authService) Logout(ctx context.Context, accessJTI, refreshToken string, accessExpiry int64) error {

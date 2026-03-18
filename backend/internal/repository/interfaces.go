@@ -30,6 +30,9 @@ type IProfileRepository interface {
 	Update(ctx context.Context, profile *domain.UserProfile) error
 	GetPreferences(ctx context.Context, userID string) (*domain.UserPreferences, error)
 	UpsertPreferences(ctx context.Context, prefs *domain.UserPreferences) error
+	AddPhoto(ctx context.Context, photo *domain.UserPhoto) error
+	DeletePhoto(ctx context.Context, userID, photoID string) error
+	GetPhotoCount(ctx context.Context, userID string) (int, error)
 }
 
 type ITokenRepository interface {
@@ -49,6 +52,14 @@ type ITokenRepository interface {
 	GetRefreshToken(ctx context.Context, tokenHash string) (userID string, expiresAt time.Time, err error)
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteAllRefreshTokens(ctx context.Context, userID string) error
+}
+
+type IMessageRepository interface {
+	Create(ctx context.Context, msg *domain.Message) error
+	GetByMatchID(ctx context.Context, matchID string, limit, offset int) ([]domain.Message, error)
+	MarkAllRead(ctx context.Context, matchID, recipientID string) error
+	GetUnreadCount(ctx context.Context, matchID, recipientID string) (int, error)
+	GetLastMessage(ctx context.Context, matchID string) (*domain.Message, error)
 }
 
 type IMatchRepository interface {
