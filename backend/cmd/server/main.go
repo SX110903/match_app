@@ -21,16 +21,15 @@ import (
 	"github.com/SX110903/match_app/backend/internal/middleware"
 	"github.com/SX110903/match_app/backend/internal/repository"
 	"github.com/SX110903/match_app/backend/internal/service"
+	ws "github.com/SX110903/match_app/backend/internal/websocket"
 	"github.com/SX110903/match_app/backend/pkg/logger"
 	"github.com/SX110903/match_app/backend/pkg/response"
 )
 
 func main() {
-	// 1. Load config (singleton - panics if required env vars are missing)
 	cfg := config.Get()
 	logger.Init(cfg.Server.Env)
 
-	// 2. Connect to MySQL
 	db, err := database.NewMySQL(cfg.Database)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to MySQL")
@@ -39,7 +38,6 @@ func main() {
 	defer db.Close()
 	logger.Info().Msg("connected to MySQL")
 
-	// 3. Connect to Redis
 	redisOpts, err := redis.ParseURL(cfg.Redis.URL)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("invalid Redis URL")
@@ -53,7 +51,6 @@ func main() {
 	defer redisClient.Close()
 	logger.Info().Msg("connected to Redis")
 
-	// 4. Instantiate auth services
 	jwtSvc, err := auth.NewJWTService(cfg.JWT)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize JWT service")
@@ -62,64 +59,61 @@ func main() {
 	totpSvc := auth.NewTOTPService()
 	blacklist := auth.NewTokenBlacklist(redisClient)
 
-	// 5. Instantiate repositories
 	userRepo := repository.NewUserRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
 	tokenRepo := repository.NewTokenRepository(db)
 	matchRepo := repository.NewMatchRepository(db)
+	msgRepo := repository.NewMessageRepository(db)
 
-	// 6. Instantiate services
 	emailSvc := email.NewSMTPSender(cfg.Email)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, emailSvc, jwtSvc, totpSvc, blacklist, cfg)
 	userSvc := service.NewUserService(userRepo, profileRepo)
 	matchSvc := service.NewMatchService(matchRepo, profileRepo)
+	msgSvc := service.NewMessageService(msgRepo, matchRepo)
+	photoSvc := service.NewPhotoService(profileRepo)
 
-	// 7. Instantiate handlers
+	hub := ws.NewHub()
+	go hub.Run()
+
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	matchHandler := handler.NewMatchHandler(matchSvc)
+	msgHandler := handler.NewMessageHandler(msgSvc, hub)
+	photoHandler := handler.NewPhotoHandler(photoSvc)
+	wsHandler := handler.NewWSHandler(hub, jwtSvc, blacklist, msgSvc, matchSvc)
 
-	// 8. Register routes
 	r := chi.NewRouter()
 
-	// Global middleware
 	r.Use(middleware.RequestID)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(chiMiddleware.RealIP)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.Timeout(30 * time.Second))
-
-	// Global rate limit: 100 req/s per IP
 	r.Use(middleware.NewIPRateLimiter(redisClient, 100, time.Second))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.OK(w, map[string]string{"status": "ok"})
 	})
 
+	r.Get("/ws", wsHandler.ServeWS)
+
 	r.Route("/api/v1", func(r chi.Router) {
-		// Auth routes (public with specific rate limits)
 		r.Route("/auth", func(r chi.Router) {
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "register", 3, time.Hour)).
 				Post("/register", authHandler.Register)
-
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "login", 5, 15*time.Minute)).
 				Post("/login", authHandler.Login)
-
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "login_2fa", 10, 5*time.Minute)).
 				Post("/login/2fa", authHandler.LoginWith2FA)
-
 			r.Post("/logout", authHandler.Logout)
 			r.Post("/refresh", authHandler.RefreshToken)
 			r.Post("/verify-email", authHandler.VerifyEmail)
-
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "forgot_password", 3, time.Hour)).
 				Post("/forgot-password", authHandler.ForgotPassword)
-
 			r.Post("/reset-password", authHandler.ResetPassword)
 		})
 
-		// Protected routes
 		authRequired := middleware.RequireAuth(jwtSvc, blacklist)
 
 		r.Route("/users", func(r chi.Router) {
@@ -128,6 +122,8 @@ func main() {
 			r.Put("/me", userHandler.UpdateMe)
 			r.Delete("/me", userHandler.DeleteMe)
 			r.Put("/me/preferences", userHandler.UpdatePreferences)
+			r.Post("/me/photos", photoHandler.AddPhoto)
+			r.Delete("/me/photos/{id}", photoHandler.DeletePhoto)
 		})
 
 		r.Route("/auth/2fa", func(r chi.Router) {
@@ -143,10 +139,12 @@ func main() {
 			r.Post("/swipe", matchHandler.Swipe)
 			r.Get("/", matchHandler.GetMatches)
 			r.Get("/{id}", matchHandler.GetMatch)
+			r.Get("/{matchId}/messages", msgHandler.GetMessages)
+			r.Post("/{matchId}/messages", msgHandler.SendMessage)
+			r.Put("/{matchId}/messages/read", msgHandler.MarkRead)
 		})
 	})
 
-	// 9. Start server with graceful shutdown
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      r,

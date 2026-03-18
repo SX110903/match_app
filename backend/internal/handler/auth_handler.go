@@ -21,6 +21,30 @@ func NewAuthHandler(authSvc service.IAuthService) *AuthHandler {
 	return &AuthHandler{authSvc: authSvc}
 }
 
+func setRefreshCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/api/v1/auth",
+		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+	})
+}
+
+func clearRefreshCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/api/v1/auth",
+	})
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req service.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -73,13 +97,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If 2FA required, don't set cookie yet
 	if result.Requires2FA {
 		response.OK(w, result)
 		return
 	}
 
-	// Only access_token goes in response body (stays in memory on client)
+	setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 
@@ -110,6 +133,7 @@ func (h *AuthHandler) LoginWith2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 
@@ -137,17 +161,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear refresh token cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Expires:  time.Unix(0, 0),
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-		Path:     "/api/v1/auth",
-	})
-
+	clearRefreshCookie(w)
 	response.OK(w, map[string]string{"message": "logged out successfully"})
 }
 
@@ -160,10 +174,12 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.authSvc.RefreshToken(r.Context(), cookie.Value)
 	if err != nil {
+		clearRefreshCookie(w)
 		response.Unauthorized(w, "invalid or expired refresh token")
 		return
 	}
 
+	setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 
@@ -193,7 +209,6 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always same response to prevent user enumeration
 	_ = h.authSvc.ForgotPassword(r.Context(), req.Email)
 	response.OK(w, map[string]string{"message": "if the email exists, you will receive a reset link"})
 }
@@ -294,3 +309,4 @@ func (h *AuthHandler) Disable2FA(w http.ResponseWriter, r *http.Request) {
 
 	response.OK(w, map[string]string{"message": "2FA disabled successfully"})
 }
+
