@@ -34,15 +34,16 @@ func (u *User) IsDeleted() bool {
 }
 
 type UserProfile struct {
-	ID         string     `db:"id"`
-	UserID     string     `db:"user_id"`
-	Name       string     `db:"name"`
-	Age        int        `db:"age"`
-	Bio        *string    `db:"bio"`
-	Occupation *string    `db:"occupation"`
-	Location   *string    `db:"location"`
-	Photos     []string   `db:"-"`
-	Interests  []string   `db:"-"`
+	ID           string      `db:"id"`
+	UserID       string      `db:"user_id"`
+	Name         string      `db:"name"`
+	Age          int         `db:"age"`
+	Bio          *string     `db:"bio"`
+	Occupation   *string     `db:"occupation"`
+	Location     *string     `db:"location"`
+	Photos       []string    `db:"-"` // URLs only, kept for candidate queries
+	PhotoObjects []UserPhoto `db:"-"` // full photo records with IDs (own profile)
+	Interests    []string    `db:"-"`
 	Latitude   *float64   `db:"latitude"`
 	Longitude  *float64   `db:"longitude"`
 	CreatedAt  time.Time  `db:"created_at"`

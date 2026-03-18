@@ -19,7 +19,7 @@ export function ProfileView() {
 
   if (!user) return null
 
-  const photos: string[] = user.photos ?? []
+  const photos = user.photos ?? []
 
   const handleAddPhoto = async () => {
     if (!photoUrl.trim()) return
@@ -53,7 +53,7 @@ export function ProfileView() {
     finally { setDeletingId(null) }
   }
 
-  const mainPhoto = photos[0] ?? `https://i.pravatar.cc/400?u=${user.id}`
+  const mainPhoto = photos[0]?.url ?? `https://i.pravatar.cc/400?u=${user.id}`
 
   return (
     <div className="flex-1 overflow-y-auto pb-24">
@@ -129,19 +129,15 @@ export function ProfileView() {
         <div className="px-4 pb-4">
           <h3 className="font-semibold text-card-foreground mb-3">Mis fotos</h3>
           <div className="grid grid-cols-3 gap-2">
-            {photos.map((url, i) => (
-              <div key={`${url}-${i}`} className="relative aspect-square rounded-xl overflow-hidden group">
-                <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" crossOrigin="anonymous" />
+            {photos.map((photo, i) => (
+              <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden group">
+                <img src={photo.url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" crossOrigin="anonymous" />
                 <button
-                  onClick={() => {
-                    // We need the photo ID — for now extract from URL or use index
-                    // TODO: track photo IDs from API response
-                    handleDeletePhoto(url)
-                  }}
-                  disabled={deletingId === url}
+                  onClick={() => handleDeletePhoto(photo.id)}
+                  disabled={deletingId === photo.id}
                   className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  {deletingId === url ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  {deletingId === photo.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                 </button>
               </div>
             ))}

@@ -69,7 +69,7 @@ type UserProfileResponse struct {
 	Bio        *string  `json:"bio"`
 	Occupation *string  `json:"occupation"`
 	Location   *string  `json:"location"`
-	Photos     []string `json:"photos"`
+	Photos     []PhotoResponse `json:"photos"`
 	Interests  []string `json:"interests"`
 	TOTPEnabled bool    `json:"totp_enabled"`
 }

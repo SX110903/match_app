@@ -50,13 +50,17 @@ func (r *profileRepository) GetByUserID(ctx context.Context, userID string) (*do
 		return nil, fmt.Errorf("getting profile: %w", err)
 	}
 
-	// Load photos
-	photos := []struct{ URL string `db:"url"` }{}
-	if err := r.db.SelectContext(ctx, &photos,
-		`SELECT url FROM user_photos WHERE user_id = ? ORDER BY sort_order`, userID,
+	// Load photos (with IDs for own-profile use)
+	photoRows := []struct {
+		ID  string `db:"id"`
+		URL string `db:"url"`
+	}{}
+	if err := r.db.SelectContext(ctx, &photoRows,
+		`SELECT id, url FROM user_photos WHERE user_id = ? ORDER BY sort_order`, userID,
 	); err == nil {
-		for _, p := range photos {
+		for _, p := range photoRows {
 			profile.Photos = append(profile.Photos, p.URL)
+			profile.PhotoObjects = append(profile.PhotoObjects, domain.UserPhoto{ID: p.ID, URL: p.URL, UserID: userID})
 		}
 	}
 

@@ -28,6 +28,11 @@ func (s *userService) GetMe(ctx context.Context, userID string) (*UserProfileRes
 		return nil, fmt.Errorf("getting profile: %w", err)
 	}
 
+	photos := make([]PhotoResponse, len(profile.PhotoObjects))
+	for i, p := range profile.PhotoObjects {
+		photos[i] = PhotoResponse{ID: p.ID, URL: p.URL}
+	}
+
 	return &UserProfileResponse{
 		ID:          user.ID,
 		Email:       user.Email,
@@ -36,7 +41,7 @@ func (s *userService) GetMe(ctx context.Context, userID string) (*UserProfileRes
 		Bio:         profile.Bio,
 		Occupation:  profile.Occupation,
 		Location:    profile.Location,
-		Photos:      profile.Photos,
+		Photos:      photos,
 		Interests:   profile.Interests,
 		TOTPEnabled: user.TOTPEnabled,
 	}, nil

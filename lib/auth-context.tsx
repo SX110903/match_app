@@ -14,7 +14,7 @@ export interface AuthUser {
   bio?: string
   occupation?: string
   location?: string
-  photos: string[]
+  photos: Array<{ id: string; url: string }>
   interests: string[]
   totp_enabled: boolean
 }
