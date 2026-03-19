@@ -79,7 +79,8 @@ func (r *matchRepository) GetMatchesByUserID(ctx context.Context, userID string)
 			m.id, m.user1_id, m.user2_id, m.created_at,
 			up.id as profile_id, up.user_id, up.name, up.age, up.bio, up.occupation, up.location,
 			(SELECT text FROM messages WHERE match_id = m.id ORDER BY created_at DESC LIMIT 1) as last_message,
-			(SELECT COUNT(*) FROM messages WHERE match_id = m.id AND sender_id != ? AND read_at IS NULL) as unread_count
+			(SELECT COUNT(*) FROM messages WHERE match_id = m.id AND sender_id != ? AND read_at IS NULL) as unread_count,
+			(SELECT GROUP_CONCAT(url ORDER BY sort_order SEPARATOR '|') FROM user_photos WHERE user_id = up.user_id) as photos_str
 		FROM matches m
 		JOIN user_profiles up ON up.user_id = CASE
 			WHEN m.user1_id = ? THEN m.user2_id
@@ -97,13 +98,19 @@ func (r *matchRepository) GetMatchesByUserID(ctx context.Context, userID string)
 	var results []domain.MatchWithProfile
 	for rows.Next() {
 		var mwp domain.MatchWithProfile
+		var photosStr *string
 		if err := rows.Scan(
 			&mwp.Match.ID, &mwp.Match.User1ID, &mwp.Match.User2ID, &mwp.Match.CreatedAt,
 			&mwp.Profile.ID, &mwp.Profile.UserID, &mwp.Profile.Name, &mwp.Profile.Age,
 			&mwp.Profile.Bio, &mwp.Profile.Occupation, &mwp.Profile.Location,
-			&mwp.LastMessage, &mwp.UnreadCount,
+			&mwp.LastMessage, &mwp.UnreadCount, &photosStr,
 		); err != nil {
 			return nil, fmt.Errorf("scanning match: %w", err)
+		}
+		if photosStr != nil && *photosStr != "" {
+			for _, url := range splitNonEmpty(*photosStr, '|') {
+				mwp.Profile.Photos = append(mwp.Profile.Photos, url)
+			}
 		}
 		results = append(results, mwp)
 	}

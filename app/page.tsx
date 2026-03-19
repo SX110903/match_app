@@ -52,7 +52,7 @@ function candidateToProfile(c: APICandidate): Profile {
     bio: c.profile.bio ?? "",
     images: c.profile.photos?.length
       ? c.profile.photos
-      : [`https://i.pravatar.cc/800?u=${c.profile.user_id}`],
+      : [`https://i.pravatar.cc/300?u=${c.profile.user_id}`],
     distance: Math.round(c.distance),
     occupation: c.profile.occupation ?? "",
     interests: c.profile.interests ?? [],
@@ -69,7 +69,7 @@ function apiMatchToMatch(m: APIMatch): Match {
       bio: m.profile.bio ?? "",
       images: m.profile.photos?.length
         ? m.profile.photos
-        : [`https://i.pravatar.cc/800?u=${m.profile.user_id}`],
+        : [`https://i.pravatar.cc/300?u=${m.profile.user_id}`],
       distance: 0,
       occupation: m.profile.occupation ?? "",
       interests: m.profile.interests ?? [],
@@ -97,6 +97,7 @@ export default function MatchHub() {
   const [loadingCandidates, setLoadingCandidates] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [myPhoto, setMyPhoto] = useState<string | undefined>(undefined)
 
   const currentProfile = profiles[currentIndex]
 
@@ -105,12 +106,14 @@ export default function MatchHub() {
     async function load() {
       setLoadingCandidates(true)
       try {
-        const [candidates, apiMatches] = await Promise.all([
+        const [candidates, apiMatches, me] = await Promise.all([
           apiClient<APICandidate[]>("/api/v1/matches/candidates?limit=20"),
           apiClient<APIMatch[]>("/api/v1/matches/"),
+          apiClient<{ photos: { url: string }[] }>("/api/v1/users/me"),
         ])
         setProfiles((candidates ?? []).map(candidateToProfile))
         setMatches((apiMatches ?? []).map(apiMatchToMatch))
+        if (me?.photos?.length) setMyPhoto(me.photos[0].url)
       } catch {
         // silent — user sees empty state
       } finally {
@@ -341,6 +344,7 @@ export default function MatchHub() {
         isOpen={showMatchModal}
         onClose={() => setShowMatchModal(false)}
         onSendMessage={handleSendMessageFromMatch}
+        currentUserPhoto={myPhoto ?? `https://i.pravatar.cc/300?u=${user?.id}`}
       />
     </div>
   )

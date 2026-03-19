@@ -46,7 +46,7 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
                       src={match.profile.images[0]}
                       alt={match.profile.name}
                       className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
@@ -84,7 +84,7 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
                       src={match.profile.images[0]}
                       alt={match.profile.name}
                       className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   {match.unread && (

@@ -10,9 +10,10 @@ interface MatchModalProps {
   isOpen: boolean
   onClose: () => void
   onSendMessage: () => void
+  currentUserPhoto?: string
 }
 
-export function MatchModal({ profile, isOpen, onClose, onSendMessage }: MatchModalProps) {
+export function MatchModal({ profile, isOpen, onClose, onSendMessage, currentUserPhoto }: MatchModalProps) {
   if (!profile) return null
 
   return (
@@ -64,10 +65,10 @@ export function MatchModal({ profile, isOpen, onClose, onSendMessage }: MatchMod
               <div className="relative">
                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary-foreground shadow-xl">
                   <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80"
+                    src={currentUserPhoto ?? `https://i.pravatar.cc/300?u=me`}
                     alt="Tu perfil"
                     className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
               </div>
@@ -86,7 +87,7 @@ export function MatchModal({ profile, isOpen, onClose, onSendMessage }: MatchMod
                     src={profile.images[0]}
                     alt={profile.name}
                     className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
               </div>
