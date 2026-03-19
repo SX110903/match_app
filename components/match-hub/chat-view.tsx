@@ -139,7 +139,7 @@ export function ChatView({ match, currentUserId, onBack }: ChatViewProps) {
               src={match.profile.images[0]}
               alt={match.profile.name}
               className="w-full h-full object-cover"
-              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
             />
           </div>
           <div>
@@ -167,7 +167,7 @@ export function ChatView({ match, currentUserId, onBack }: ChatViewProps) {
               src={match.profile.images[0]}
               alt={match.profile.name}
               className="w-full h-full object-cover"
-              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
             />
           </div>
           <h3 className="font-semibold text-card-foreground">{match.profile.name}</h3>

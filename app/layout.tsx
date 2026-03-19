@@ -37,9 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased bg-background">
         <AuthProvider>
-          {children}
+          <div className="max-w-[430px] mx-auto h-screen relative overflow-hidden">
+            {children}
+          </div>
         </AuthProvider>
         <Analytics />
       </body>

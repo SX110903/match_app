@@ -217,7 +217,7 @@ export default function MatchHub() {
 
   if (isLoading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-full items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -244,7 +244,7 @@ export default function MatchHub() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-full bg-background">
       <main className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           {activeTab === "home" && (
@@ -331,6 +331,8 @@ export default function MatchHub() {
         onTabChange={setActiveTab}
         unreadMessages={unreadMessages}
         newMatches={newMatchCount}
+        userPhoto={myPhoto ?? `https://i.pravatar.cc/300?u=${user?.id}`}
+        userName={user?.name}
       />
 
       <ProfileModal
