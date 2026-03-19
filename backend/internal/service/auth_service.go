@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -74,6 +75,10 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) error {
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		// MySQL 1062: Duplicate entry — concurrent registration race
+		if strings.Contains(err.Error(), "1062") || strings.Contains(err.Error(), "Duplicate entry") {
+			return domain.ErrConflict
+		}
 		return fmt.Errorf("creating user: %w", err)
 	}
 

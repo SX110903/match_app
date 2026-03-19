@@ -115,7 +115,7 @@ func main() {
 				Post("/login", authHandler.Login)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "login_2fa", 10, 5*time.Minute)).
 				Post("/login/2fa", authHandler.LoginWith2FA)
-			r.Post("/logout", authHandler.Logout)
+			r.With(middleware.RequireAuth(jwtSvc, blacklist)).Post("/logout", authHandler.Logout)
 			r.Post("/refresh", authHandler.RefreshToken)
 			r.Post("/verify-email", authHandler.VerifyEmail)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "forgot_password", 3, time.Hour)).

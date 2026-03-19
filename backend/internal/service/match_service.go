@@ -47,6 +47,11 @@ func (s *matchService) Swipe(ctx context.Context, userID, targetID string, direc
 		return nil, domain.ErrSelfAction
 	}
 
+	// Validate target user exists
+	if _, err := s.profileRepo.GetByUserID(ctx, targetID); err != nil {
+		return nil, domain.ErrNotFound
+	}
+
 	swipe := &domain.Swipe{
 		ID:        uuid.New().String(),
 		SwiperID:  userID,
