@@ -1,23 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register']
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next()
-  }
-
-  // Presence of the refresh_token httpOnly cookie signals an active session.
-  const hasSession = request.cookies.has('refresh_token')
-  if (!hasSession) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('returnTo', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
+// Auth is fully client-side (token lives in memory, refresh cookie on backend).
+// We skip server-side cookie checks since the refresh_token cookie is set by
+// the backend (different port), which browsers don't reliably share across ports.
+// Client-side protection is handled by the AuthGuard in the root layout.
+export function middleware(_request: NextRequest) {
   return NextResponse.next()
 }
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -122,7 +123,7 @@ func Load() (*Config, error) {
 
 	// Security
 	cfg.Security.EncryptionKey = requireEnv("ENCRYPTION_KEY")
-	cfg.Security.AllowedOrigins = viper.GetStringSlice("ALLOWED_ORIGINS")
+	cfg.Security.AllowedOrigins = strings.Split(viper.GetString("ALLOWED_ORIGINS"), ",")
 	cfg.Security.FrontendURL = requireEnv("FRONTEND_URL")
 
 	return cfg, nil

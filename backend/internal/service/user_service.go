@@ -44,6 +44,10 @@ func (s *userService) GetMe(ctx context.Context, userID string) (*UserProfileRes
 		Photos:      photos,
 		Interests:   profile.Interests,
 		TOTPEnabled: user.TOTPEnabled,
+		IsAdmin:     user.IsAdmin,
+		IsFrozen:    user.IsFrozen,
+		VIPLevel:    user.VIPLevel,
+		Credits:     user.Credits,
 	}, nil
 }
 
@@ -66,7 +70,15 @@ func (s *userService) UpdateMe(ctx context.Context, userID string, req UpdatePro
 		profile.Location = req.Location
 	}
 
-	return s.profileRepo.Update(ctx, profile)
+	if err := s.profileRepo.Update(ctx, profile); err != nil {
+		return err
+	}
+	if req.Interests != nil {
+		if err := s.profileRepo.ReplaceInterests(ctx, userID, req.Interests); err != nil {
+			return fmt.Errorf("updating interests: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *userService) DeleteMe(ctx context.Context, userID string) error {

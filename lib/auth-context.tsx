@@ -17,6 +17,10 @@ export interface AuthUser {
   photos: Array<{ id: string; url: string }>
   interests: string[]
   totp_enabled: boolean
+  is_admin: boolean
+  is_frozen: boolean
+  vip_level: number
+  credits: number
 }
 
 interface AuthContextValue {

@@ -50,9 +50,18 @@ func (s *messageService) GetMessages(ctx context.Context, userID, matchID string
 	return responses, nil
 }
 
-func (s *messageService) SendMessage(ctx context.Context, userID, matchID, text string) (*MessageResponse, error) {
-	if err := s.assertMatchParticipant(ctx, userID, matchID); err != nil {
-		return nil, err
+func (s *messageService) SendMessage(ctx context.Context, userID, matchID, text string) (*MessageResponse, string, error) {
+	match, err := s.matchRepo.GetMatchByID(ctx, matchID)
+	if err != nil {
+		return nil, "", domain.ErrNotFound
+	}
+	if match.User1ID != userID && match.User2ID != userID {
+		return nil, "", domain.ErrForbidden
+	}
+
+	otherUserID := match.User2ID
+	if match.User2ID == userID {
+		otherUserID = match.User1ID
 	}
 
 	msg := &domain.Message{
@@ -64,11 +73,11 @@ func (s *messageService) SendMessage(ctx context.Context, userID, matchID, text 
 	}
 
 	if err := s.msgRepo.Create(ctx, msg); err != nil {
-		return nil, fmt.Errorf("creating message: %w", err)
+		return nil, "", fmt.Errorf("creating message: %w", err)
 	}
 
 	resp := toMessageResponse(*msg)
-	return &resp, nil
+	return &resp, otherUserID, nil
 }
 
 func (s *messageService) MarkRead(ctx context.Context, userID, matchID string) error {

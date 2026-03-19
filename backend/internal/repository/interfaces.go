@@ -33,6 +33,7 @@ type IProfileRepository interface {
 	AddPhoto(ctx context.Context, photo *domain.UserPhoto) error
 	DeletePhoto(ctx context.Context, userID, photoID string) error
 	GetPhotoCount(ctx context.Context, userID string) (int, error)
+	ReplaceInterests(ctx context.Context, userID string, interests []string) error
 }
 
 type ITokenRepository interface {
@@ -69,4 +70,36 @@ type IMatchRepository interface {
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	GetMatchesByUserID(ctx context.Context, userID string) ([]domain.MatchWithProfile, error)
 	GetCandidates(ctx context.Context, userID string, prefs *domain.UserPreferences, limit, offset int) ([]domain.Candidate, error)
+}
+
+type IPostRepository interface {
+	Create(ctx context.Context, post *domain.Post) error
+	GetFeed(ctx context.Context, viewerID string, limit, offset int) ([]domain.Post, error)
+	GetByID(ctx context.Context, postID, viewerID string) (*domain.Post, error)
+	Delete(ctx context.Context, postID, userID string) error
+	LikePost(ctx context.Context, like *domain.PostLike) error
+	UnlikePost(ctx context.Context, postID, userID string) error
+	GetComments(ctx context.Context, postID string) ([]domain.PostComment, error)
+	AddComment(ctx context.Context, comment *domain.PostComment) (*domain.PostComment, error)
+}
+
+type INewsRepository interface {
+	Create(ctx context.Context, article *domain.NewsArticle) error
+	Update(ctx context.Context, article *domain.NewsArticle) error
+	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*domain.NewsArticle, error)
+	List(ctx context.Context, category string, publishedOnly bool, limit, offset int) ([]domain.NewsArticle, error)
+}
+
+type IAdminRepository interface {
+	ListUsers(ctx context.Context, limit, offset int) ([]AdminUserSummary, error)
+	SetFrozen(ctx context.Context, userID string, frozen bool) error
+	SetVIPLevel(ctx context.Context, userID string, level int) error
+	AddCredits(ctx context.Context, userID string, delta int) error
+	SetAdmin(ctx context.Context, userID string, admin bool) error
+	LogAction(ctx context.Context, log *domain.AdminLog) error
+	GetNotificationSettings(ctx context.Context, userID string) (*domain.NotificationSettings, error)
+	UpsertNotificationSettings(ctx context.Context, s *domain.NotificationSettings) error
+	GetPrivacySettings(ctx context.Context, userID string) (*domain.PrivacySettings, error)
+	UpsertPrivacySettings(ctx context.Context, s *domain.PrivacySettings) error
 }

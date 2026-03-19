@@ -64,22 +64,31 @@ func main() {
 	tokenRepo := repository.NewTokenRepository(db)
 	matchRepo := repository.NewMatchRepository(db)
 	msgRepo := repository.NewMessageRepository(db)
+	postRepo := repository.NewPostRepository(db)
+	newsRepo := repository.NewNewsRepository(db)
+	adminRepo := repository.NewAdminRepository(db)
 
 	emailSvc := email.NewSMTPSender(cfg.Email)
-	authSvc := service.NewAuthService(userRepo, tokenRepo, emailSvc, jwtSvc, totpSvc, blacklist, cfg)
+	authSvc := service.NewAuthService(userRepo, profileRepo, tokenRepo, emailSvc, jwtSvc, totpSvc, blacklist, cfg)
 	userSvc := service.NewUserService(userRepo, profileRepo)
 	matchSvc := service.NewMatchService(matchRepo, profileRepo)
 	msgSvc := service.NewMessageService(msgRepo, matchRepo)
 	photoSvc := service.NewPhotoService(profileRepo)
+	postSvc := service.NewPostService(postRepo)
+	newsSvc := service.NewNewsService(newsRepo)
+	adminSvc := service.NewAdminService(adminRepo, userRepo)
 
 	hub := ws.NewHub()
 	go hub.Run()
 
-	authHandler := handler.NewAuthHandler(authSvc)
+	authHandler := handler.NewAuthHandler(authSvc, cfg)
 	userHandler := handler.NewUserHandler(userSvc)
 	matchHandler := handler.NewMatchHandler(matchSvc)
 	msgHandler := handler.NewMessageHandler(msgSvc, hub)
 	photoHandler := handler.NewPhotoHandler(photoSvc)
+	postHandler := handler.NewPostHandler(postSvc)
+	newsHandler := handler.NewNewsHandler(newsSvc, adminSvc)
+	adminHandler := handler.NewAdminHandler(adminSvc)
 	wsHandler := handler.NewWSHandler(hub, jwtSvc, blacklist, msgSvc, matchSvc)
 
 	r := chi.NewRouter()
@@ -142,6 +151,43 @@ func main() {
 			r.Get("/{matchId}/messages", msgHandler.GetMessages)
 			r.Post("/{matchId}/messages", msgHandler.SendMessage)
 			r.Put("/{matchId}/messages/read", msgHandler.MarkRead)
+		})
+
+		r.Route("/posts", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/", postHandler.GetFeed)
+			r.Post("/", postHandler.CreatePost)
+			r.Delete("/{postId}", postHandler.DeletePost)
+			r.Post("/{postId}/like", postHandler.LikePost)
+			r.Delete("/{postId}/like", postHandler.UnlikePost)
+			r.Get("/{postId}/comments", postHandler.GetComments)
+			r.Post("/{postId}/comments", postHandler.AddComment)
+		})
+
+		r.Route("/news", func(r chi.Router) {
+			r.With(authRequired).Get("/", newsHandler.ListArticles)
+			r.With(authRequired).Get("/{id}", newsHandler.GetArticle)
+			r.With(authRequired).Post("/", newsHandler.CreateArticle)
+			r.With(authRequired).Put("/{id}", newsHandler.UpdateArticle)
+			r.With(authRequired).Delete("/{id}", newsHandler.DeleteArticle)
+		})
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/users", adminHandler.ListUsers)
+			r.Post("/freeze", adminHandler.FreezeUser)
+			r.Post("/unfreeze", adminHandler.UnfreezeUser)
+			r.Post("/vip", adminHandler.SetVIP)
+			r.Post("/credits", adminHandler.AdjustCredits)
+			r.Post("/role", adminHandler.SetAdminRole)
+		})
+
+		r.Route("/settings", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/notifications", adminHandler.GetNotificationSettings)
+			r.Put("/notifications", adminHandler.SaveNotificationSettings)
+			r.Get("/privacy", adminHandler.GetPrivacySettings)
+			r.Put("/privacy", adminHandler.SavePrivacySettings)
 		})
 	})
 

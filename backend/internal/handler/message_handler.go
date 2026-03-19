@@ -84,7 +84,7 @@ func (h *MessageHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, err := h.msgSvc.SendMessage(r.Context(), claims.Subject, matchID, req.Text)
+	msg, otherUserID, err := h.msgSvc.SendMessage(r.Context(), claims.Subject, matchID, req.Text)
 	if err != nil {
 		switch err {
 		case domain.ErrNotFound:
@@ -98,11 +98,8 @@ func (h *MessageHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Broadcast to WebSocket clients if hub is configured
 	if h.hub != nil {
-		// We don't know the other user ID here without extra lookup,
-		// so we broadcast to the match room generically
-		h.hub.BroadcastMessage(matchID, claims.Subject, "", *msg)
+		h.hub.BroadcastMessage(matchID, claims.Subject, otherUserID, *msg)
 	}
 
 	response.Created(w, msg)

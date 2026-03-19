@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS matches (
     user2_id    VARCHAR(36) NOT NULL,
     created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_match_user1 FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_match_user2 FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_match_user1 FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_match_user2 FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE KEY uq_match_users (user1_id, user2_id),
     INDEX idx_match_user1_id (user1_id),
     INDEX idx_match_user2_id (user2_id)

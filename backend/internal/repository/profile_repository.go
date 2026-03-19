@@ -167,3 +167,30 @@ func (r *profileRepository) GetPhotoCount(ctx context.Context, userID string) (i
 	)
 	return count, err
 }
+
+func (r *profileRepository) ReplaceInterests(ctx context.Context, userID string, interests []string) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_interests WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	for _, interest := range interests {
+		if interest == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT IGNORE INTO user_interests (id, user_id, interest) VALUES (?, ?, ?)`,
+			uuid.New().String(), userID, interest,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}

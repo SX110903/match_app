@@ -1,9 +1,9 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Flame, Heart, MessageCircle, User } from "lucide-react"
+import { Home, Newspaper, Flame, MessageCircle, User } from "lucide-react"
 
-export type TabType = "discover" | "matches" | "messages" | "profile"
+export type TabType = "home" | "news" | "discover" | "messages" | "profile"
 
 interface BottomNavProps {
   activeTab: TabType
@@ -14,15 +14,16 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, onTabChange, unreadMessages = 0, newMatches = 0 }: BottomNavProps) {
   const tabs = [
-    { id: "discover" as const, icon: Flame, label: "Descubrir" },
-    { id: "matches" as const, icon: Heart, label: "Matches", badge: newMatches },
-    { id: "messages" as const, icon: MessageCircle, label: "Chat", badge: unreadMessages },
+    { id: "home" as const, icon: Home, label: "Inicio" },
+    { id: "news" as const, icon: Newspaper, label: "Noticias" },
+    { id: "discover" as const, icon: Flame, label: "Citas" },
+    { id: "messages" as const, icon: MessageCircle, label: "Chat", badge: unreadMessages + newMatches },
     { id: "profile" as const, icon: User, label: "Perfil" },
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-area-inset-bottom">
-      <div className="flex items-center justify-around py-2 px-4 max-w-md mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-area-inset-bottom z-50">
+      <div className="flex items-center justify-around py-2 px-2 max-w-lg mx-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -31,7 +32,7 @@ export function BottomNav({ activeTab, onTabChange, unreadMessages = 0, newMatch
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="relative flex flex-col items-center gap-1 py-2 px-4 transition-colors"
+              className="relative flex flex-col items-center gap-1 py-2 px-3 transition-colors flex-1"
               aria-label={tab.label}
               aria-current={isActive ? "page" : undefined}
             >
@@ -41,7 +42,7 @@ export function BottomNav({ activeTab, onTabChange, unreadMessages = 0, newMatch
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 >
                   <Icon
-                    className={`w-6 h-6 transition-colors ${
+                    className={`w-5 h-5 transition-colors ${
                       isActive ? "text-primary" : "text-muted-foreground"
                     } ${isActive && tab.id === "discover" ? "fill-primary" : ""}`}
                   />
@@ -53,7 +54,7 @@ export function BottomNav({ activeTab, onTabChange, unreadMessages = 0, newMatch
                 )}
               </div>
               <span
-                className={`text-xs transition-colors ${
+                className={`text-[10px] transition-colors ${
                   isActive ? "text-primary font-medium" : "text-muted-foreground"
                 }`}
               >

@@ -100,8 +100,14 @@ export function ChatView({ match, currentUserId, onBack }: ChatViewProps) {
         method: 'POST',
         body: { text },
       })
-      // Replace optimistic with real message
-      setMessages((prev) => prev.map((m) => m.id === optimistic.id ? toDisplay(created) : m))
+      // Replace optimistic with real message, deduplicating in case WS already delivered it
+      setMessages((prev) => {
+        const real = toDisplay(created)
+        if (prev.some((m) => m.id === real.id)) {
+          return prev.filter((m) => m.id !== optimistic.id)
+        }
+        return prev.map((m) => m.id === optimistic.id ? real : m)
+      })
     } catch {
       // Remove optimistic on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))

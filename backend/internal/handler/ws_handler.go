@@ -103,22 +103,9 @@ func (h *WSHandler) handleInbound(userID string, raw []byte) {
 func (h *WSHandler) handleChatMessage(userID, matchID, text string) {
 	ctx := context.Background()
 
-	created, err := h.msgSvc.SendMessage(ctx, userID, matchID, text)
+	created, otherUserID, err := h.msgSvc.SendMessage(ctx, userID, matchID, text)
 	if err != nil {
 		return
-	}
-
-	// Determine the other participant so we broadcast to both sides.
-	match, err := h.matchSvc.GetMatch(ctx, userID, matchID)
-	if err != nil {
-		// Still broadcast to sender at minimum.
-		h.hub.BroadcastMessage(matchID, userID, "", *created)
-		return
-	}
-
-	otherUserID := match.User1ID
-	if match.User1ID == userID {
-		otherUserID = match.User2ID
 	}
 
 	h.hub.BroadcastMessage(matchID, userID, otherUserID, *created)

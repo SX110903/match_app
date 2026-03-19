@@ -21,17 +21,19 @@ import (
 )
 
 type authService struct {
-	userRepo  repository.IUserRepository
-	tokenRepo repository.ITokenRepository
-	emailSvc  email.IEmailService
-	jwtSvc    auth.IJWTService
-	totpSvc   auth.ITOTPService
-	blacklist auth.ITokenBlacklist
-	cfg       *config.Config
+	userRepo    repository.IUserRepository
+	profileRepo repository.IProfileRepository
+	tokenRepo   repository.ITokenRepository
+	emailSvc    email.IEmailService
+	jwtSvc      auth.IJWTService
+	totpSvc     auth.ITOTPService
+	blacklist   auth.ITokenBlacklist
+	cfg         *config.Config
 }
 
 func NewAuthService(
 	userRepo repository.IUserRepository,
+	profileRepo repository.IProfileRepository,
 	tokenRepo repository.ITokenRepository,
 	emailSvc email.IEmailService,
 	jwtSvc auth.IJWTService,
@@ -40,13 +42,14 @@ func NewAuthService(
 	cfg *config.Config,
 ) IAuthService {
 	return &authService{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		emailSvc:  emailSvc,
-		jwtSvc:    jwtSvc,
-		totpSvc:   totpSvc,
-		blacklist: blacklist,
-		cfg:       cfg,
+		userRepo:    userRepo,
+		profileRepo: profileRepo,
+		tokenRepo:   tokenRepo,
+		emailSvc:    emailSvc,
+		jwtSvc:      jwtSvc,
+		totpSvc:     totpSvc,
+		blacklist:   blacklist,
+		cfg:         cfg,
 	}
 }
 
@@ -72,6 +75,18 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) error {
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return fmt.Errorf("creating user: %w", err)
+	}
+
+	profile := &domain.UserProfile{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		Name:      req.Name,
+		Age:       req.Age,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := s.profileRepo.Create(ctx, profile); err != nil {
+		return fmt.Errorf("creating profile: %w", err)
 	}
 
 	// Send verification email

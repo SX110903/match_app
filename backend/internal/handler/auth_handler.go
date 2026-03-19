@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SX110903/match_app/backend/internal/auth"
+	"github.com/SX110903/match_app/backend/internal/config"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/service"
 	"github.com/SX110903/match_app/backend/internal/validator"
@@ -14,34 +15,35 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc service.IAuthService
+	authSvc    service.IAuthService
+	secureCookie bool
 }
 
-func NewAuthHandler(authSvc service.IAuthService) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc}
+func NewAuthHandler(authSvc service.IAuthService, cfg *config.Config) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, secureCookie: cfg.IsProduction()}
 }
 
-func setRefreshCookie(w http.ResponseWriter, token string) {
+func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    token,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.secureCookie,
 		SameSite: http.SameSiteStrictMode,
-		Path:     "/api/v1/auth",
+		Path:     "/",
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
 	})
 }
 
-func clearRefreshCookie(w http.ResponseWriter) {
+func (h *AuthHandler) clearRefreshCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   h.secureCookie,
 		SameSite: http.SameSiteStrictMode,
-		Path:     "/api/v1/auth",
+		Path:     "/",
 	})
 }
 
@@ -102,7 +104,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setRefreshCookie(w, result.RefreshToken)
+	h.setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 
@@ -133,7 +135,7 @@ func (h *AuthHandler) LoginWith2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setRefreshCookie(w, result.RefreshToken)
+	h.setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 
@@ -161,7 +163,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clearRefreshCookie(w)
+	h.clearRefreshCookie(w)
 	response.OK(w, map[string]string{"message": "logged out successfully"})
 }
 
@@ -174,12 +176,12 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.authSvc.RefreshToken(r.Context(), cookie.Value)
 	if err != nil {
-		clearRefreshCookie(w)
+		h.clearRefreshCookie(w)
 		response.Unauthorized(w, "invalid or expired refresh token")
 		return
 	}
 
-	setRefreshCookie(w, result.RefreshToken)
+	h.setRefreshCookie(w, result.RefreshToken)
 	response.OK(w, map[string]string{"access_token": result.AccessToken})
 }
 

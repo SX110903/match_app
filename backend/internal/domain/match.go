@@ -19,20 +19,20 @@ type Swipe struct {
 }
 
 type Match struct {
-	ID        string    `db:"id"`
-	User1ID   string    `db:"user1_id"`
-	User2ID   string    `db:"user2_id"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        string    `db:"id"         json:"id"`
+	User1ID   string    `db:"user1_id"   json:"user1_id"`
+	User2ID   string    `db:"user2_id"   json:"user2_id"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 type MatchWithProfile struct {
 	Match
-	Profile     UserProfile
-	LastMessage *string
-	UnreadCount int
+	Profile     UserProfile `json:"profile"`
+	LastMessage *string     `json:"last_message"`
+	UnreadCount int         `json:"unread_count"`
 }
 
 type Candidate struct {
-	Profile  UserProfile
-	Distance float64
+	Profile  UserProfile `json:"profile"`
+	Distance float64     `json:"distance"`
 }

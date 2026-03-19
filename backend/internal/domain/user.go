@@ -14,6 +14,10 @@ type User struct {
 	FailedLoginAttempts int        `db:"failed_login_attempts"`
 	LockedUntil         *time.Time `db:"locked_until"`
 	DeletedAt           *time.Time `db:"deleted_at"`
+	IsAdmin             bool       `db:"is_admin"`
+	IsFrozen            bool       `db:"is_frozen"`
+	VIPLevel            int        `db:"vip_level"`
+	Credits             int        `db:"credits"`
 	CreatedAt           time.Time  `db:"created_at"`
 	UpdatedAt           time.Time  `db:"updated_at"`
 }
@@ -34,20 +38,20 @@ func (u *User) IsDeleted() bool {
 }
 
 type UserProfile struct {
-	ID           string      `db:"id"`
-	UserID       string      `db:"user_id"`
-	Name         string      `db:"name"`
-	Age          int         `db:"age"`
-	Bio          *string     `db:"bio"`
-	Occupation   *string     `db:"occupation"`
-	Location     *string     `db:"location"`
-	Photos       []string    `db:"-"` // URLs only, kept for candidate queries
-	PhotoObjects []UserPhoto `db:"-"` // full photo records with IDs (own profile)
-	Interests    []string    `db:"-"`
-	Latitude   *float64   `db:"latitude"`
-	Longitude  *float64   `db:"longitude"`
-	CreatedAt  time.Time  `db:"created_at"`
-	UpdatedAt  time.Time  `db:"updated_at"`
+	ID           string      `db:"id"         json:"id"`
+	UserID       string      `db:"user_id"    json:"user_id"`
+	Name         string      `db:"name"       json:"name"`
+	Age          int         `db:"age"        json:"age"`
+	Bio          *string     `db:"bio"        json:"bio"`
+	Occupation   *string     `db:"occupation" json:"occupation"`
+	Location     *string     `db:"location"   json:"location"`
+	Photos       []string    `db:"-"          json:"photos"`
+	PhotoObjects []UserPhoto `db:"-"          json:"-"`
+	Interests    []string    `db:"-"          json:"interests"`
+	Latitude     *float64    `db:"latitude"   json:"latitude"`
+	Longitude    *float64    `db:"longitude"  json:"longitude"`
+	CreatedAt    time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time   `db:"updated_at" json:"updated_at"`
 }
 
 type UserPreferences struct {

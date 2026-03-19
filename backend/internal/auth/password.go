@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -40,63 +41,31 @@ func HashPassword(password string) (string, error) {
 }
 
 // VerifyPassword checks a password against an Argon2id hash using constant-time comparison.
+// Expected hash format: $argon2id$v=19$m=65536,t=3,p=4$<salt_b64>$<hash_b64>
 func VerifyPassword(password, encodedHash string) (bool, error) {
-	var version int
-	var memory, iterations uint32
-	var parallelism uint8
-	var saltB64, hashB64 string
-
-	_, err := fmt.Sscanf(encodedHash, "$argon2id$v=%d$m=%d,t=%d,p=%d$%s",
-		&version, &memory, &iterations, &parallelism, &saltB64,
-	)
-	if err != nil {
-		// Try splitting manually for the last two parts
-		parts := splitArgon2Hash(encodedHash)
-		if len(parts) != 6 {
-			return false, fmt.Errorf("invalid hash format")
-		}
-		saltB64 = parts[4]
-		hashB64 = parts[5]
-	} else {
-		parts := splitArgon2Hash(encodedHash)
-		if len(parts) != 6 {
-			return false, fmt.Errorf("invalid hash format")
-		}
-		hashB64 = parts[5]
+	// strings.Split on "$argon2id$v=19$m=65536,t=3,p=4$SALT$HASH" yields:
+	// ["", "argon2id", "v=19", "m=65536,t=3,p=4", "SALT", "HASH"] — 6 parts
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
+		return false, fmt.Errorf("invalid hash format")
 	}
 
-	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
+	var memory, iterations uint32
+	var parallelism uint8
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism); err != nil {
+		return false, fmt.Errorf("parsing hash params: %w", err)
+	}
+
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false, fmt.Errorf("decoding salt: %w", err)
 	}
 
-	storedHash, err := base64.RawStdEncoding.DecodeString(hashB64)
+	storedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
 		return false, fmt.Errorf("decoding hash: %w", err)
 	}
 
 	computedHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(storedHash)))
-
 	return subtle.ConstantTimeCompare(storedHash, computedHash) == 1, nil
-}
-
-func splitArgon2Hash(s string) []string {
-	parts := make([]string, 0, 6)
-	current := ""
-	count := 0
-	for _, c := range s {
-		if c == '$' {
-			if count > 0 {
-				parts = append(parts, current)
-				current = ""
-			}
-			count++
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-	return parts
 }

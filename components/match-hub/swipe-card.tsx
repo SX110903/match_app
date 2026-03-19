@@ -62,7 +62,7 @@ export function SwipeCard({ profile, onSwipe, onInfoClick }: SwipeCardProps) {
             src={profile.images[currentImageIndex]}
             alt={profile.name}
             className="w-full h-full object-cover"
-            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
