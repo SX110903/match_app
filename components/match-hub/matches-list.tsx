@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Match } from "@/lib/types"
+import { BadgeIcon } from "@/components/match-hub/badge"
 
 interface MatchesListProps {
   matches: Match[]
@@ -93,7 +94,10 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
                 </div>
                 <div className="flex-1 text-left">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-card-foreground">{match.profile.name}</h4>
+                    <h4 className="font-semibold text-card-foreground flex items-center gap-1">
+                      {match.profile.name}
+                      <BadgeIcon badge={match.profile.badge} />
+                    </h4>
                     <span className="text-xs text-muted-foreground">{formatTime(match.matchedAt)}</span>
                   </div>
                   <p

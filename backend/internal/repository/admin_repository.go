@@ -22,6 +22,7 @@ type AdminUserSummary struct {
 	IsFrozen bool   `db:"is_frozen" json:"is_frozen"`
 	VIPLevel int    `db:"vip_level" json:"vip_level"`
 	Credits  int    `db:"credits"  json:"credits"`
+	Badge    string `db:"badge"    json:"badge"`
 }
 
 func (r *adminRepository) ListUsers(ctx context.Context, limit, offset int) ([]AdminUserSummary, error) {
@@ -30,7 +31,7 @@ func (r *adminRepository) ListUsers(ctx context.Context, limit, offset int) ([]A
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT u.id, u.email, COALESCE(up.name, u.email) AS name,
-		       u.is_admin, u.is_frozen, u.vip_level, u.credits
+		       u.is_admin, u.is_frozen, u.vip_level, u.credits, u.badge
 		FROM users u
 		LEFT JOIN user_profiles up ON up.user_id = u.id
 		WHERE u.deleted_at IS NULL
@@ -44,7 +45,7 @@ func (r *adminRepository) ListUsers(ctx context.Context, limit, offset int) ([]A
 	var users []AdminUserSummary
 	for rows.Next() {
 		var u AdminUserSummary
-		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.IsAdmin, &u.IsFrozen, &u.VIPLevel, &u.Credits); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.IsAdmin, &u.IsFrozen, &u.VIPLevel, &u.Credits, &u.Badge); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

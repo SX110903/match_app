@@ -37,20 +37,22 @@ func (s *userService) GetMe(ctx context.Context, userID string) (*UserProfileRes
 	}
 
 	return &UserProfileResponse{
-		ID:          user.ID,
-		Email:       user.Email,
-		Name:        profile.Name,
-		Age:         profile.Age,
-		Bio:         profile.Bio,
-		Occupation:  profile.Occupation,
-		Location:    profile.Location,
-		Photos:      photos,
-		Interests:   profile.Interests,
-		TOTPEnabled: user.TOTPEnabled,
-		IsAdmin:     user.IsAdmin,
-		IsFrozen:    user.IsFrozen,
-		VIPLevel:    user.VIPLevel,
-		Credits:     user.Credits,
+		ID:            user.ID,
+		Email:         user.Email,
+		Name:          profile.Name,
+		Age:           profile.Age,
+		Bio:           profile.Bio,
+		Occupation:    profile.Occupation,
+		Location:      profile.Location,
+		Photos:        photos,
+		Interests:     profile.Interests,
+		TOTPEnabled:   user.TOTPEnabled,
+		IsAdmin:       user.IsAdmin,
+		IsFrozen:      user.IsFrozen,
+		VIPLevel:      user.VIPLevel,
+		Credits:       user.Credits,
+		Badge:         user.Badge,
+		FollowerCount: user.FollowerCount,
 	}, nil
 }
 

@@ -18,6 +18,8 @@ type User struct {
 	IsFrozen            bool       `db:"is_frozen"`
 	VIPLevel            int        `db:"vip_level"`
 	Credits             int        `db:"credits"`
+	Badge               string     `db:"badge"           json:"badge"`
+	FollowerCount       int        `db:"follower_count"  json:"follower_count"`
 	CreatedAt           time.Time  `db:"created_at"`
 	UpdatedAt           time.Time  `db:"updated_at"`
 }

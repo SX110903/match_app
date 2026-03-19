@@ -15,9 +15,11 @@ import { InicioView } from "@/components/match-hub/inicio-view"
 import { NoticiasView } from "@/components/match-hub/noticias-view"
 import { AdminView } from "@/components/match-hub/admin-view"
 import { SettingsView } from "@/components/match-hub/settings-view"
+import { ShopView } from "@/components/match-hub/shop-view"
 import { Profile, Match } from "@/lib/types"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
+import { AVATAR_BASE } from "@/lib/constants"
 
 interface APICandidate {
   profile: {
@@ -30,6 +32,7 @@ interface APICandidate {
     location?: string
     photos?: string[]
     interests?: string[]
+    badge?: string
   }
   distance: number
 }
@@ -42,6 +45,7 @@ interface APIMatch {
   profile: APICandidate["profile"]
   last_message?: string
   unread_count: number
+  badge?: string
 }
 
 function candidateToProfile(c: APICandidate): Profile {
@@ -52,10 +56,11 @@ function candidateToProfile(c: APICandidate): Profile {
     bio: c.profile.bio ?? "",
     images: c.profile.photos?.length
       ? c.profile.photos
-      : [`https://i.pravatar.cc/300?u=${c.profile.user_id}`],
+      : [`${AVATAR_BASE}?u=${c.profile.user_id}`],
     distance: Math.round(c.distance),
     occupation: c.profile.occupation ?? "",
     interests: c.profile.interests ?? [],
+    badge: (c.profile.badge as Profile["badge"]) ?? "none",
   }
 }
 
@@ -69,10 +74,11 @@ function apiMatchToMatch(m: APIMatch): Match {
       bio: m.profile.bio ?? "",
       images: m.profile.photos?.length
         ? m.profile.photos
-        : [`https://i.pravatar.cc/300?u=${m.profile.user_id}`],
+        : [`${AVATAR_BASE}?u=${m.profile.user_id}`],
       distance: 0,
       occupation: m.profile.occupation ?? "",
       interests: m.profile.interests ?? [],
+      badge: (m.profile.badge as Profile["badge"]) ?? "none",
     },
     matchedAt: new Date(m.created_at),
     lastMessage: m.last_message,
@@ -97,6 +103,7 @@ export default function MatchHub() {
   const [loadingCandidates, setLoadingCandidates] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showShop, setShowShop] = useState(false)
   const [myPhoto, setMyPhoto] = useState<string | undefined>(undefined)
 
   const currentProfile = profiles[currentIndex]
@@ -232,6 +239,10 @@ export default function MatchHub() {
     return <AdminView onClose={() => setShowAdmin(false)} />
   }
 
+  if (showShop) {
+    return <ShopView onClose={() => setShowShop(false)} />
+  }
+
   // Chat detail
   if (selectedMatch) {
     return (
@@ -320,6 +331,7 @@ export default function MatchHub() {
               <ProfileView
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenAdmin={user.is_admin ? () => setShowAdmin(true) : undefined}
+                onOpenShop={() => setShowShop(true)}
               />
             </div>
           )}
@@ -331,7 +343,7 @@ export default function MatchHub() {
         onTabChange={setActiveTab}
         unreadMessages={unreadMessages}
         newMatches={newMatchCount}
-        userPhoto={myPhoto ?? `https://i.pravatar.cc/300?u=${user?.id}`}
+        userPhoto={myPhoto ?? `${AVATAR_BASE}?u=${user?.id}`}
         userName={user?.name}
       />
 
@@ -346,7 +358,7 @@ export default function MatchHub() {
         isOpen={showMatchModal}
         onClose={() => setShowMatchModal(false)}
         onSendMessage={handleSendMessageFromMatch}
-        currentUserPhoto={myPhoto ?? `https://i.pravatar.cc/300?u=${user?.id}`}
+        currentUserPhoto={myPhoto ?? `${AVATAR_BASE}?u=${user?.id}`}
       />
     </div>
   )

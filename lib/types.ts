@@ -1,3 +1,5 @@
+export type BadgeType = "none" | "influencer" | "verified" | "verified_gov"
+
 export interface Profile {
   id: string
   name: string
@@ -7,6 +9,7 @@ export interface Profile {
   distance: number
   occupation: string
   interests: string[]
+  badge?: BadgeType
 }
 
 export interface Match {

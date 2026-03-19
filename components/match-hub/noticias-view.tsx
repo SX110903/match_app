@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { AdBanner } from "@/components/match-hub/ad-banner"
 
 interface Article {
   id: string
@@ -136,6 +137,15 @@ function AdminArticleForm({ article, onSave, onCancel }: {
   )
 }
 
+interface AdData {
+  id: string
+  title: string
+  description?: string
+  image_url?: string
+  cta_text: string
+  cta_url: string
+}
+
 export function NoticiasView() {
   const { user } = useAuth()
   const [articles, setArticles] = useState<Article[]>([])
@@ -144,6 +154,7 @@ export function NoticiasView() {
   const [selected, setSelected] = useState<Article | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingArticle, setEditingArticle] = useState<Article | undefined>()
+  const [activeAd, setActiveAd] = useState<AdData | null>(null)
 
   const isAdmin = user?.is_admin ?? false
 
@@ -151,14 +162,18 @@ export function NoticiasView() {
     setLoading(true)
     try {
       const catParam = category !== "all" ? `&category=${category}` : ""
-      const data = await apiClient<Article[]>(`/api/v1/news?limit=20${catParam}`)
+      const [data, ad] = await Promise.all([
+        apiClient<Article[]>(`/api/v1/news?limit=20${catParam}`),
+        apiClient<AdData | null>(`/api/v1/ads/active?badge=${user?.badge ?? "none"}`).catch(() => null),
+      ])
       setArticles(data ?? [])
+      setActiveAd(ad ?? null)
     } catch {
       //
     } finally {
       setLoading(false)
     }
-  }, [category])
+  }, [category, user?.badge])
 
   useEffect(() => { loadArticles() }, [loadArticles])
 
@@ -351,6 +366,9 @@ export function NoticiasView() {
             </div>
           ))
         )}
+
+        {/* Ad banner at bottom of feed */}
+        {activeAd && !loading && <AdBanner ad={activeAd} />}
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { apiClient, setAuthToken } from './api-client'
 import { connectWS, disconnectWS } from './websocket-client'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+import { API_URL } from './constants'
 
 export interface AuthUser {
   id: string
@@ -21,6 +21,8 @@ export interface AuthUser {
   is_frozen: boolean
   vip_level: number
   credits: number
+  badge?: string
+  follower_count?: number
 }
 
 interface AuthContextValue {

@@ -5,6 +5,7 @@ import { X, Bell, Lock, Search, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient, APIError } from "@/lib/api-client"
+import { AVATAR_BASE } from "@/lib/constants"
 
 interface NotificationSettings {
   new_matches: boolean
@@ -161,7 +162,7 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3 mb-6 p-4 bg-card rounded-xl border border-border">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-secondary">
               <img
-                src={user.photos?.[0]?.url ?? `https://i.pravatar.cc/100?u=${user.id}`}
+                src={user.photos?.[0]?.url ?? `${AVATAR_BASE}?u=${user.id}`}
                 alt={user.name}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"

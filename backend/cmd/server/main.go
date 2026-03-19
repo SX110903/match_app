@@ -67,6 +67,9 @@ func main() {
 	postRepo := repository.NewPostRepository(db)
 	newsRepo := repository.NewNewsRepository(db)
 	adminRepo := repository.NewAdminRepository(db)
+	followRepo := repository.NewFollowRepository(db)
+	shopRepo := repository.NewShopRepository(db)
+	adRepo := repository.NewAdRepository(db, redisClient)
 
 	emailSvc := email.NewSMTPSender(cfg.Email)
 	authSvc := service.NewAuthService(userRepo, profileRepo, tokenRepo, emailSvc, jwtSvc, totpSvc, blacklist, cfg)
@@ -77,6 +80,9 @@ func main() {
 	postSvc := service.NewPostService(postRepo)
 	newsSvc := service.NewNewsService(newsRepo)
 	adminSvc := service.NewAdminService(adminRepo, userRepo)
+	badgeSvc := service.NewBadgeService(followRepo, userRepo, adminSvc)
+	shopSvc := service.NewShopService(shopRepo)
+	adSvc := service.NewAdService(adRepo, adminSvc)
 
 	hub := ws.NewHub()
 	go hub.Run()
@@ -89,6 +95,9 @@ func main() {
 	postHandler := handler.NewPostHandler(postSvc)
 	newsHandler := handler.NewNewsHandler(newsSvc, adminSvc)
 	adminHandler := handler.NewAdminHandler(adminSvc)
+	badgeHandler := handler.NewBadgeHandler(badgeSvc)
+	shopHandler := handler.NewShopHandler(shopSvc)
+	adHandler := handler.NewAdHandler(adSvc)
 	wsHandler := handler.NewWSHandler(hub, jwtSvc, blacklist, msgSvc, matchSvc)
 
 	r := chi.NewRouter()
@@ -133,6 +142,11 @@ func main() {
 			r.Put("/me/preferences", userHandler.UpdatePreferences)
 			r.Post("/me/photos", photoHandler.AddPhoto)
 			r.Delete("/me/photos/{id}", photoHandler.DeletePhoto)
+			r.Post("/me/follow/{targetId}", badgeHandler.Follow)
+			r.Delete("/me/follow/{targetId}", badgeHandler.Unfollow)
+			r.Post("/me/verify", badgeHandler.RequestVerify)
+			r.Get("/{id}/followers", badgeHandler.GetFollowers)
+			r.Get("/{id}/following", badgeHandler.GetFollowing)
 		})
 
 		r.Route("/auth/2fa", func(r chi.Router) {
@@ -172,6 +186,19 @@ func main() {
 			r.With(authRequired).Delete("/{id}", newsHandler.DeleteArticle)
 		})
 
+		r.Route("/shop", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/items", shopHandler.GetItems)
+			r.Post("/purchase", shopHandler.Purchase)
+			r.Get("/transactions", shopHandler.GetTransactions)
+		})
+
+		r.Route("/ads", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/active", adHandler.GetActive)
+			r.Post("/{id}/click", adHandler.RegisterClick)
+		})
+
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(authRequired)
 			r.Get("/users", adminHandler.ListUsers)
@@ -182,6 +209,16 @@ func main() {
 			r.Post("/vip", adminHandler.SetVIP)
 			r.Post("/credits", adminHandler.AdjustCredits)
 			r.Post("/role", adminHandler.SetAdminRole)
+			r.Post("/badge", badgeHandler.AdminSetBadge)
+		})
+
+		r.Route("/admin/ads", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/", adHandler.AdminList)
+			r.Post("/", adHandler.AdminCreate)
+			r.Put("/{id}", adHandler.AdminUpdate)
+			r.Delete("/{id}", adHandler.AdminDelete)
+			r.Post("/{id}/toggle", adHandler.AdminToggle)
 		})
 
 		r.Route("/settings", func(r chi.Router) {

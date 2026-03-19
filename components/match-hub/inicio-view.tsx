@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from "react"
 import { Heart, MessageCircle, Repeat2, Share2, Image, X, Send } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
+import { AVATAR_BASE } from "@/lib/constants"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AdBanner } from "@/components/match-hub/ad-banner"
 
 interface Post {
   id: string
@@ -91,7 +93,7 @@ function TweetCard({ post, onUpdated }: {
     }
   }
 
-  const avatar = post.author_avatar || `https://i.pravatar.cc/100?u=${post.user_id}`
+  const avatar = post.author_avatar || `${AVATAR_BASE}?u=${post.user_id}`
 
   return (
     <article className="flex gap-3 px-4 py-3 border-b border-border hover:bg-muted/20 transition-colors">
@@ -169,7 +171,7 @@ function TweetCard({ post, onUpdated }: {
                 <div key={c.id} className="flex gap-2">
                   <Avatar className="w-7 h-7 flex-shrink-0">
                     <AvatarImage
-                      src={c.author_avatar || `https://i.pravatar.cc/100?u=${c.user_id}`}
+                      src={c.author_avatar || `${AVATAR_BASE}?u=${c.user_id}`}
                       referrerPolicy="no-referrer"
                     />
                     <AvatarFallback className="text-[10px] bg-secondary">
@@ -207,6 +209,15 @@ function TweetCard({ post, onUpdated }: {
   )
 }
 
+interface AdData {
+  id: string
+  title: string
+  description?: string
+  image_url?: string
+  cta_text: string
+  cta_url: string
+}
+
 export function InicioView() {
   const { user } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
@@ -216,18 +227,23 @@ export function InicioView() {
   const [showImageInput, setShowImageInput] = useState(false)
   const [posting, setPosting] = useState(false)
   const [composing, setComposing] = useState(false)
+  const [activeAd, setActiveAd] = useState<AdData | null>(null)
 
   const loadFeed = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await apiClient<Post[]>("/api/v1/posts?limit=30")
+      const [data, ad] = await Promise.all([
+        apiClient<Post[]>("/api/v1/posts?limit=30"),
+        apiClient<AdData | null>(`/api/v1/ads/active?badge=${user?.badge ?? "none"}`).catch(() => null),
+      ])
       setPosts(data ?? [])
+      setActiveAd(ad ?? null)
     } catch {
       //
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user?.badge])
 
   useEffect(() => {
     loadFeed()
@@ -255,7 +271,7 @@ export function InicioView() {
 
   if (!user) return null
 
-  const userAvatar = user.photos?.[0]?.url || `https://i.pravatar.cc/100?u=${user.id}`
+  const userAvatar = user.photos?.[0]?.url || `${AVATAR_BASE}?u=${user.id}`
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -330,14 +346,16 @@ export function InicioView() {
             <p className="text-sm text-muted-foreground/60 mt-1">¡Sé el primero en publicar!</p>
           </div>
         ) : (
-          posts.map((post) => (
-            <TweetCard
-              key={post.id}
-              post={post}
-              onUpdated={(updated) =>
-                setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
-              }
-            />
+          posts.map((post, idx) => (
+            <div key={post.id}>
+              <TweetCard
+                post={post}
+                onUpdated={(updated) =>
+                  setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+                }
+              />
+              {activeAd && (idx + 1) % 5 === 0 && <AdBanner ad={activeAd} />}
+            </div>
           ))
         )}
       </div>

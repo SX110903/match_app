@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { Heart, MessageCircle, X } from "lucide-react"
 import { Profile } from "@/lib/types"
+import { AVATAR_BASE } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
 
 interface MatchModalProps {
@@ -65,7 +66,7 @@ export function MatchModal({ profile, isOpen, onClose, onSendMessage, currentUse
               <div className="relative">
                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary-foreground shadow-xl">
                   <img
-                    src={currentUserPhoto ?? `https://i.pravatar.cc/300?u=me`}
+                    src={currentUserPhoto ?? `${AVATAR_BASE}?u=me`}
                     alt="Tu perfil"
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"

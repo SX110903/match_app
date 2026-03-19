@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Shield, SnowflakeIcon, Star, Coins, ChevronDown, ChevronUp, RefreshCw, ArrowLeft, Trash2, ClipboardList, Users } from "lucide-react"
+import { Shield, SnowflakeIcon, Star, Coins, ChevronDown, ChevronUp, RefreshCw, ArrowLeft, Trash2, ClipboardList, Users, Megaphone, Plus, ToggleLeft, ToggleRight, X } from "lucide-react"
 import { apiClient, APIError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { BadgeIcon, type BadgeType } from "@/components/match-hub/badge"
 
 interface AdminUser {
   id: string
@@ -14,7 +15,29 @@ interface AdminUser {
   is_frozen: boolean
   vip_level: number
   credits: number
+  badge: string
 }
+
+interface AdEntry {
+  id: string
+  title: string
+  description?: string
+  image_url?: string
+  cta_text: string
+  cta_url: string
+  target_badge: string
+  active: boolean
+  impressions: number
+  clicks: number
+  created_at: string
+}
+
+const BADGE_OPTIONS = [
+  { value: "none", label: "Sin badge" },
+  { value: "influencer", label: "Influencer" },
+  { value: "verified", label: "Verificado" },
+  { value: "verified_gov", label: "Verificado Gov" },
+]
 
 interface AuditEntry {
   id: string
@@ -74,6 +97,7 @@ function UserRow({
   const [loading, setLoading] = useState(false)
   const [creditDelta, setCreditDelta] = useState(0)
   const [vipLevel, setVipLevel] = useState(adminUser.vip_level)
+  const [badgeValue, setBadgeValue] = useState(adminUser.badge || "none")
   const [confirm, setConfirm] = useState<{ msg: string; fn: () => void } | null>(null)
 
   const act = async (action: string, body: object, successMsg?: string) => {
@@ -124,7 +148,12 @@ function UserRow({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="text-sm font-medium text-card-foreground truncate">{adminUser.name}</p>
+              <p className="text-sm font-medium text-card-foreground truncate flex items-center gap-1">
+                {adminUser.name}
+                {adminUser.badge && adminUser.badge !== "none" && (
+                  <BadgeIcon badge={adminUser.badge as BadgeType} />
+                )}
+              </p>
               {adminUser.is_admin && (
                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Admin</Badge>
               )}
@@ -195,6 +224,28 @@ function UserRow({
                 className="text-xs bg-primary hover:bg-primary/90 px-3"
                 disabled={loading || vipLevel === adminUser.vip_level}
                 onClick={() => act("vip", { user_id: adminUser.id, vip_level: vipLevel }, `VIP → ${VIP_LABELS[vipLevel]}`)}
+              >
+                Guardar
+              </Button>
+            </div>
+
+            {/* Badge */}
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-500 flex-shrink-0" />
+              <select
+                value={badgeValue}
+                onChange={(e) => setBadgeValue(e.target.value)}
+                className="flex-1 text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {BADGE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                className="text-xs bg-primary hover:bg-primary/90 px-3"
+                disabled={loading || badgeValue === (adminUser.badge || "none")}
+                onClick={() => act("badge", { user_id: adminUser.id, badge: badgeValue }, `Badge → ${BADGE_OPTIONS.find(o => o.value === badgeValue)?.label}`)}
               >
                 Guardar
               </Button>
@@ -293,7 +344,164 @@ function AuditTab() {
   )
 }
 
-type AdminTab = "users" | "audit"
+function AdsTab({ onToast }: { onToast: (msg: string, type: "success" | "error") => void }) {
+  const [ads, setAds] = useState<AdEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [form, setForm] = useState({ title: "", description: "", cta_text: "Ver más", cta_url: "", target_badge: "all", active: false })
+  const [saving, setSaving] = useState(false)
+
+  const loadAds = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await apiClient<AdEntry[]>("/api/v1/admin/ads")
+      setAds(data ?? [])
+    } catch { /* silent */ } finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { loadAds() }, [loadAds])
+
+  const handleToggle = async (id: string) => {
+    try {
+      await apiClient(`/api/v1/admin/ads/${id}/toggle`, { method: "POST" })
+      onToast("Estado actualizado", "success")
+      loadAds()
+    } catch (e) {
+      onToast(e instanceof APIError ? e.message : "Error", "error")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await apiClient(`/api/v1/admin/ads/${id}`, { method: "DELETE" })
+      onToast("Anuncio eliminado", "success")
+      loadAds()
+    } catch (e) {
+      onToast(e instanceof APIError ? e.message : "Error al eliminar", "error")
+    }
+    setConfirmDelete(null)
+  }
+
+  const handleCreate = async () => {
+    if (!form.title || !form.cta_url) { onToast("Título y URL CTA son requeridos", "error"); return }
+    setSaving(true)
+    try {
+      await apiClient("/api/v1/admin/ads", {
+        method: "POST",
+        body: {
+          title: form.title,
+          description: form.description || undefined,
+          cta_text: form.cta_text || "Ver más",
+          cta_url: form.cta_url,
+          target_badge: form.target_badge,
+          active: form.active,
+        },
+      })
+      onToast("Anuncio creado", "success")
+      setShowCreate(false)
+      setForm({ title: "", description: "", cta_text: "Ver más", cta_url: "", target_badge: "all", active: false })
+      loadAds()
+    } catch (e) {
+      onToast(e instanceof APIError ? e.message : "Error al crear", "error")
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24">
+      {confirmDelete && (
+        <ConfirmModal
+          message="¿Eliminar este anuncio?"
+          onConfirm={() => handleDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+      <div className="flex justify-between items-center mb-3">
+        <p className="text-xs text-muted-foreground">{ads.length} anuncio{ads.length !== 1 ? "s" : ""}</p>
+        <Button size="sm" className="text-xs" onClick={() => setShowCreate(true)}>
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          Nuevo
+        </Button>
+      </div>
+
+      {showCreate && (
+        <div className="bg-card border border-border rounded-xl p-4 mb-3 space-y-2">
+          <div className="flex justify-between items-center mb-1">
+            <p className="text-sm font-semibold">Nuevo anuncio</p>
+            <button onClick={() => setShowCreate(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+          </div>
+          {[
+            { label: "Título*", key: "title", placeholder: "Título del anuncio" },
+            { label: "Descripción", key: "description", placeholder: "Descripción opcional" },
+            { label: "Texto CTA", key: "cta_text", placeholder: "Ver más" },
+            { label: "URL CTA*", key: "cta_url", placeholder: "https://..." },
+          ].map((field) => (
+            <div key={field.key}>
+              <label className="text-[11px] text-muted-foreground">{field.label}</label>
+              <input
+                value={form[field.key as keyof typeof form] as string}
+                onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
+                placeholder={field.placeholder}
+                className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-[11px] text-muted-foreground">Badge objetivo</label>
+            <select
+              value={form.target_badge}
+              onChange={(e) => setForm((f) => ({ ...f, target_badge: e.target.value }))}
+              className="w-full border border-border rounded-lg px-2 py-1.5 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">Todos</option>
+              {BADGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="adActive" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} />
+            <label htmlFor="adActive" className="text-xs text-muted-foreground">Activo</label>
+          </div>
+          <Button size="sm" className="w-full text-xs" disabled={saving} onClick={handleCreate}>
+            {saving ? "Creando..." : "Crear anuncio"}
+          </Button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+      ) : ads.length === 0 ? (
+        <p className="text-center text-muted-foreground text-sm py-8">No hay anuncios</p>
+      ) : (
+        ads.map((ad) => (
+          <div key={ad.id} className="bg-card border border-border rounded-xl p-3 mb-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-card-foreground truncate">{ad.title}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{ad.cta_url}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ad.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                    {ad.active ? "Activo" : "Inactivo"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{ad.impressions} imp · {ad.clicks} clics</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => handleToggle(ad.id)} className="p-1 hover:text-primary text-muted-foreground">
+                  {ad.active ? <ToggleRight className="w-5 h-5 text-green-600" /> : <ToggleLeft className="w-5 h-5" />}
+                </button>
+                <button onClick={() => setConfirmDelete(ad.id)} className="p-1 hover:text-destructive text-muted-foreground">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+type AdminTab = "users" | "audit" | "ads"
 
 export function AdminView({ onClose }: { onClose?: () => void }) {
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -390,10 +598,19 @@ export function AdminView({ onClose }: { onClose?: () => void }) {
           <ClipboardList className="w-3.5 h-3.5" />
           Auditoría
         </button>
+        <button
+          onClick={() => setActiveTab("ads")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors ${activeTab === "ads" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+        >
+          <Megaphone className="w-3.5 h-3.5" />
+          Publicidad
+        </button>
       </div>
 
       {activeTab === "audit" ? (
         <AuditTab />
+      ) : activeTab === "ads" ? (
+        <AdsTab onToast={showToast} />
       ) : (
         <>
           {/* Search + filter */}

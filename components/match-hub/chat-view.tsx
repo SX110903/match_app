@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, Send, MoreVertical, Phone, Video } from "lucide-react"
 import { Match } from "@/lib/types"
+import { BadgeIcon } from "@/components/match-hub/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiClient } from "@/lib/api-client"
@@ -143,7 +144,10 @@ export function ChatView({ match, currentUserId, onBack }: ChatViewProps) {
             />
           </div>
           <div>
-            <h2 className="font-semibold text-card-foreground">{match.profile.name}</h2>
+            <h2 className="font-semibold text-card-foreground flex items-center gap-1">
+              {match.profile.name}
+              <BadgeIcon badge={match.profile.badge} />
+            </h2>
             <p className="text-xs text-muted-foreground">Match Hub</p>
           </div>
         </div>

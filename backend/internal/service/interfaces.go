@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/SX110903/match_app/backend/internal/config"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/repository"
 )
@@ -65,6 +66,31 @@ type INewsService interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type IBadgeService interface {
+	Follow(ctx context.Context, followerID, targetID string) error
+	Unfollow(ctx context.Context, followerID, targetID string) error
+	GetFollowers(ctx context.Context, userID string, page, limit int) ([]string, error)
+	GetFollowing(ctx context.Context, userID string, page, limit int) ([]string, error)
+	RequestVerify(ctx context.Context, userID string) error
+	AdminSetBadge(ctx context.Context, adminID, targetID, badge string) error
+}
+
+type IShopService interface {
+	GetItems(ctx context.Context) ([]config.ShopItem, error)
+	Purchase(ctx context.Context, userID string, itemType string, itemValue int) error
+	GetTransactions(ctx context.Context, userID string, page, limit int) ([]domain.ShopTransaction, error)
+}
+
+type IAdService interface {
+	GetActive(ctx context.Context, userID, userBadge string) (*domain.Ad, error)
+	RegisterClick(ctx context.Context, adID, userID string) error
+	AdminCreate(ctx context.Context, adminID string, req AdCreateRequest) (*domain.Ad, error)
+	AdminUpdate(ctx context.Context, adminID, adID string, req AdUpdateRequest) (*domain.Ad, error)
+	AdminDelete(ctx context.Context, adminID, adID string) error
+	AdminToggle(ctx context.Context, adminID, adID string) error
+	AdminList(ctx context.Context, adminID string) ([]domain.Ad, error)
+}
+
 type IAdminService interface {
 	AssertAdmin(ctx context.Context, userID string) error
 	ListUsers(ctx context.Context, page, limit int) ([]repository.AdminUserSummary, error)
@@ -110,20 +136,22 @@ type Setup2FAResponse struct {
 // --- User DTOs ---
 
 type UserProfileResponse struct {
-	ID          string          `json:"id"`
-	Email       string          `json:"email"`
-	Name        string          `json:"name"`
-	Age         int             `json:"age"`
-	Bio         *string         `json:"bio"`
-	Occupation  *string         `json:"occupation"`
-	Location    *string         `json:"location"`
-	Photos      []PhotoResponse `json:"photos"`
-	Interests   []string        `json:"interests"`
-	TOTPEnabled bool            `json:"totp_enabled"`
-	IsAdmin     bool            `json:"is_admin"`
-	IsFrozen    bool            `json:"is_frozen"`
-	VIPLevel    int             `json:"vip_level"`
-	Credits     int             `json:"credits"`
+	ID            string          `json:"id"`
+	Email         string          `json:"email"`
+	Name          string          `json:"name"`
+	Age           int             `json:"age"`
+	Bio           *string         `json:"bio"`
+	Occupation    *string         `json:"occupation"`
+	Location      *string         `json:"location"`
+	Photos        []PhotoResponse `json:"photos"`
+	Interests     []string        `json:"interests"`
+	TOTPEnabled   bool            `json:"totp_enabled"`
+	IsAdmin       bool            `json:"is_admin"`
+	IsFrozen      bool            `json:"is_frozen"`
+	VIPLevel      int             `json:"vip_level"`
+	Credits       int             `json:"credits"`
+	Badge         string          `json:"badge"`
+	FollowerCount int             `json:"follower_count"`
 }
 
 type UpdateProfileRequest struct {
@@ -265,4 +293,40 @@ type PrivacySettingsRequest struct {
 	ShowLastSeen     bool `json:"show_last_seen"`
 	ShowDistance     bool `json:"show_distance"`
 	IncognitoMode    bool `json:"incognito_mode"`
+}
+
+// --- Badge DTOs ---
+
+type SetBadgeRequest struct {
+	UserID string `json:"user_id" validate:"required"`
+	Badge  string `json:"badge"   validate:"required"`
+}
+
+// --- Shop DTOs ---
+
+type PurchaseRequest struct {
+	ItemType  string `json:"item_type"  validate:"required"`
+	ItemValue int    `json:"item_value" validate:"required,min=1,max=5"`
+}
+
+// --- Ad DTOs ---
+
+type AdCreateRequest struct {
+	Title       string  `json:"title"        validate:"required,max=100"`
+	Description *string `json:"description"  validate:"omitempty,max=300"`
+	ImageURL    *string `json:"image_url"    validate:"omitempty,max=500"`
+	CTAText     string  `json:"cta_text"     validate:"omitempty,max=50"`
+	CTAURL      string  `json:"cta_url"      validate:"required,max=500"`
+	TargetBadge string  `json:"target_badge" validate:"omitempty"`
+	Active      bool    `json:"active"`
+}
+
+type AdUpdateRequest struct {
+	Title       *string `json:"title"        validate:"omitempty,max=100"`
+	Description *string `json:"description"  validate:"omitempty,max=300"`
+	ImageURL    *string `json:"image_url"    validate:"omitempty,max=500"`
+	CTAText     *string `json:"cta_text"     validate:"omitempty,max=50"`
+	CTAURL      *string `json:"cta_url"      validate:"omitempty,max=500"`
+	TargetBadge *string `json:"target_badge" validate:"omitempty"`
+	Active      *bool   `json:"active"`
 }

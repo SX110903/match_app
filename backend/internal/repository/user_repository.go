@@ -205,3 +205,25 @@ func (r *userRepository) UpdateLastLogin(ctx context.Context, id string) error {
 	)
 	return err
 }
+
+func (r *userRepository) UpdateBadge(ctx context.Context, userID string, badge string) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET badge = ?, updated_at = ? WHERE id = ?`,
+		badge, time.Now(), userID,
+	)
+	return err
+}
+
+func (r *userRepository) UpdateCredits(ctx context.Context, userID string, delta int) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET credits = GREATEST(credits + ?, 0), updated_at = ? WHERE id = ?`,
+		delta, time.Now(), userID,
+	)
+	return err
+}

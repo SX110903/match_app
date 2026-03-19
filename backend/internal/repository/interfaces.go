@@ -22,6 +22,36 @@ type IUserRepository interface {
 	DisableTOTP(ctx context.Context, id string) error
 	UpdatePassword(ctx context.Context, id string, passwordHash string) error
 	UpdateLastLogin(ctx context.Context, id string) error
+	UpdateBadge(ctx context.Context, userID string, badge string) error
+	UpdateCredits(ctx context.Context, userID string, delta int) error
+}
+
+type IFollowRepository interface {
+	Follow(ctx context.Context, followerID, followedID string) error
+	Unfollow(ctx context.Context, followerID, followedID string) error
+	GetFollowerCount(ctx context.Context, userID string) (int, error)
+	GetFollowingCount(ctx context.Context, userID string) (int, error)
+	GetFollowers(ctx context.Context, userID string, limit, offset int) ([]string, error)
+	GetFollowing(ctx context.Context, userID string, limit, offset int) ([]string, error)
+	IsFollowing(ctx context.Context, followerID, followedID string) (bool, error)
+}
+
+type IShopRepository interface {
+	CreateTransaction(ctx context.Context, tx *domain.ShopTransaction) error
+	GetTransactionsByUser(ctx context.Context, userID string, limit, offset int) ([]domain.ShopTransaction, error)
+	PurchaseVIP(ctx context.Context, userID string, itemValue, cost int) error
+}
+
+type IAdRepository interface {
+	GetActive(ctx context.Context, userBadge string) (*domain.Ad, error)
+	RegisterClick(ctx context.Context, adID, userID string) error
+	Create(ctx context.Context, ad *domain.Ad) error
+	Update(ctx context.Context, ad *domain.Ad) error
+	Delete(ctx context.Context, id string) error
+	Toggle(ctx context.Context, id string) error
+	ListAll(ctx context.Context) ([]domain.Ad, error)
+	GetByID(ctx context.Context, id string) (*domain.Ad, error)
+	IncrementImpressions(ctx context.Context, id string) error
 }
 
 type IProfileRepository interface {

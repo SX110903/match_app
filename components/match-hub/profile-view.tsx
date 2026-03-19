@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient, APIError } from "@/lib/api-client"
+import { AVATAR_BASE } from "@/lib/constants"
+import { BadgeIcon, type BadgeType } from "@/components/match-hub/badge"
 
 const VIP_LABELS = ["", "Bronce", "Plata", "Oro", "Platino", "Diamante"]
 const VIP_COLORS = [
@@ -222,9 +224,11 @@ function AddPhotoModal({
 export function ProfileView({
   onOpenSettings,
   onOpenAdmin,
+  onOpenShop,
 }: {
   onOpenSettings?: () => void
   onOpenAdmin?: () => void
+  onOpenShop?: () => void
 }) {
   const { user, logout, refreshUser } = useAuth()
   const [showAddPhoto, setShowAddPhoto] = useState(false)
@@ -234,7 +238,7 @@ export function ProfileView({
   if (!user) return null
 
   const photos = user.photos ?? []
-  const mainPhoto = photos[0]?.url ?? `https://i.pravatar.cc/400?u=${user.id}`
+  const mainPhoto = photos[0]?.url ?? `${AVATAR_BASE}?u=${user.id}`
 
   const profileCompleteness = Math.min(
     100,
@@ -330,7 +334,10 @@ export function ProfileView({
 
           {/* Name + badges */}
           <div className="mb-1 flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-foreground text-sm">{user.name}</p>
+            <p className="font-bold text-foreground text-sm flex items-center gap-1">
+              {user.name}
+              <BadgeIcon badge={user.badge as BadgeType | undefined} />
+            </p>
             {user.age && <p className="text-sm text-muted-foreground">{user.age} años</p>}
             {user.vip_level > 0 && (
               <span className={`text-xs font-bold ${VIP_COLORS[user.vip_level]}`}>
@@ -393,6 +400,14 @@ export function ProfileView({
               Añadir foto
             </button>
           </div>
+          {onOpenShop && (
+            <button
+              onClick={onOpenShop}
+              className="w-full mt-2 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              🛒 Ir a la tienda
+            </button>
+          )}
         </div>
 
         {/* ── Story highlights row ── */}

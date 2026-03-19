@@ -1,4 +1,4 @@
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8080'
+import { WS_URL } from './constants'
 
 export interface WSMessage {
   type: string

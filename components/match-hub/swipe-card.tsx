@@ -5,6 +5,7 @@ import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion"
 import { MapPin, Briefcase, Info, ChevronLeft, ChevronRight } from "lucide-react"
 import { Profile } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { BadgeIcon } from "@/components/match-hub/badge"
 
 interface SwipeCardProps {
   profile: Profile
@@ -115,8 +116,9 @@ export function SwipeCard({ profile, onSwipe, onInfoClick }: SwipeCardProps) {
         <div className="absolute bottom-0 left-0 right-0 p-6 text-primary-foreground">
           <div className="flex items-end justify-between">
             <div className="flex-1">
-              <h2 className="text-3xl font-bold">
+              <h2 className="text-3xl font-bold flex items-center gap-2">
                 {profile.name}, {profile.age}
+                <BadgeIcon badge={profile.badge} />
               </h2>
               <div className="flex items-center gap-2 mt-1 text-primary-foreground/80">
                 <Briefcase className="w-4 h-4" />
