@@ -3,12 +3,12 @@ package domain
 import "time"
 
 type AdminLog struct {
-	ID        string     `db:"id"`
-	AdminID   string     `db:"admin_id"`
-	TargetID  *string    `db:"target_id"`
-	Action    string     `db:"action"`
-	Details   *string    `db:"details"` // JSON string
-	CreatedAt time.Time  `db:"created_at"`
+	ID        string     `db:"id"         json:"id"`
+	AdminID   string     `db:"admin_id"   json:"admin_id"`
+	TargetID  *string    `db:"target_id"  json:"target_id,omitempty"`
+	Action    string     `db:"action"     json:"action"`
+	Details   *string    `db:"details"    json:"details,omitempty"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
 }
 
 type NotificationSettings struct {

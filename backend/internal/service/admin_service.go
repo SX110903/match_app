@@ -75,6 +75,18 @@ func (s *adminService) AdjustCredits(ctx context.Context, adminID, targetID stri
 	if err := s.AssertAdmin(ctx, adminID); err != nil {
 		return err
 	}
+	if delta > 10000 || delta < -10000 {
+		return domain.ErrInvalidInput
+	}
+	if delta < 0 {
+		target, err := s.userRepo.GetByID(ctx, targetID)
+		if err != nil {
+			return domain.ErrNotFound
+		}
+		if target.Credits+delta < 0 {
+			return domain.ErrInvalidInput
+		}
+	}
 	if err := s.adminRepo.AddCredits(ctx, targetID, delta); err != nil {
 		return fmt.Errorf("adjusting credits: %w", err)
 	}
@@ -86,6 +98,9 @@ func (s *adminService) SetAdmin(ctx context.Context, adminID, targetID string, i
 	if err := s.AssertAdmin(ctx, adminID); err != nil {
 		return err
 	}
+	if adminID == targetID {
+		return domain.ErrSelfAction
+	}
 	if err := s.adminRepo.SetAdmin(ctx, targetID, isAdmin); err != nil {
 		return fmt.Errorf("setting admin: %w", err)
 	}
@@ -94,6 +109,33 @@ func (s *adminService) SetAdmin(ctx context.Context, adminID, targetID string, i
 		action = "revoke_admin"
 	}
 	return s.logAction(ctx, adminID, &targetID, action, nil)
+}
+
+func (s *adminService) DeleteUser(ctx context.Context, adminID, targetID string) error {
+	if err := s.AssertAdmin(ctx, adminID); err != nil {
+		return err
+	}
+	if adminID == targetID {
+		return domain.ErrSelfAction
+	}
+	if err := s.userRepo.SoftDelete(ctx, targetID); err != nil {
+		return fmt.Errorf("deleting user: %w", err)
+	}
+	return s.logAction(ctx, adminID, &targetID, "delete_user", nil)
+}
+
+func (s *adminService) GetAuditLog(ctx context.Context, adminID string, page, limit int) ([]domain.AdminLog, error) {
+	if err := s.AssertAdmin(ctx, adminID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0
+	}
+	return s.adminRepo.GetAuditLog(ctx, limit, offset)
 }
 
 func (s *adminService) GetNotificationSettings(ctx context.Context, userID string) (*domain.NotificationSettings, error) {

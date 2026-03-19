@@ -122,10 +122,12 @@ export function SwipeCard({ profile, onSwipe, onInfoClick }: SwipeCardProps) {
                 <Briefcase className="w-4 h-4" />
                 <span className="text-sm">{profile.occupation}</span>
               </div>
-              <div className="flex items-center gap-2 mt-1 text-primary-foreground/80">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm">a {profile.distance} km</span>
-              </div>
+              {profile.distance > 0 && (
+                <div className="flex items-center gap-2 mt-1 text-primary-foreground/80">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-sm">a {profile.distance} km</span>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 mt-3">
                 {profile.interests.slice(0, 3).map((interest) => (
                   <Badge

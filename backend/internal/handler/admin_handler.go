@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/SX110903/match_app/backend/internal/auth"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/service"
@@ -123,11 +124,16 @@ func (h *AdminHandler) AdjustCredits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.adminSvc.AdjustCredits(r.Context(), claims.Subject, req.UserID, req.Delta); err != nil {
-		if err == domain.ErrForbidden {
+		switch err {
+		case domain.ErrForbidden:
 			response.Forbidden(w, "admin required")
-			return
+		case domain.ErrInvalidInput:
+			response.BadRequest(w, "delta exceeds limit or would result in negative balance")
+		case domain.ErrNotFound:
+			response.NotFound(w, "user not found")
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	response.OK(w, map[string]string{"status": "ok"})
@@ -148,6 +154,58 @@ func (h *AdminHandler) SetAdminRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.adminSvc.SetAdmin(r.Context(), claims.Subject, req.UserID, req.IsAdmin); err != nil {
+		switch err {
+		case domain.ErrForbidden:
+			response.Forbidden(w, "admin required")
+		case domain.ErrSelfAction:
+			response.Forbidden(w, "cannot modify your own admin role")
+		default:
+			response.InternalError(w)
+		}
+		return
+	}
+	response.OK(w, map[string]bool{"is_admin": req.IsAdmin})
+}
+
+func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "not authenticated")
+		return
+	}
+	userID := chi.URLParam(r, "id")
+	if userID == "" {
+		response.BadRequest(w, "missing user id")
+		return
+	}
+	if err := h.adminSvc.DeleteUser(r.Context(), claims.Subject, userID); err != nil {
+		switch err {
+		case domain.ErrForbidden:
+			response.Forbidden(w, "admin required")
+		case domain.ErrSelfAction:
+			response.Forbidden(w, "cannot delete your own account")
+		case domain.ErrNotFound:
+			response.NotFound(w, "user not found")
+		default:
+			response.InternalError(w)
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminHandler) GetAuditLog(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "not authenticated")
+		return
+	}
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	logs, err := h.adminSvc.GetAuditLog(r.Context(), claims.Subject, page, 50)
+	if err != nil {
 		if err == domain.ErrForbidden {
 			response.Forbidden(w, "admin required")
 			return
@@ -155,7 +213,10 @@ func (h *AdminHandler) SetAdminRole(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-	response.OK(w, map[string]bool{"is_admin": req.IsAdmin})
+	if logs == nil {
+		logs = []domain.AdminLog{}
+	}
+	response.OK(w, logs)
 }
 
 func (h *AdminHandler) GetNotificationSettings(w http.ResponseWriter, r *http.Request) {

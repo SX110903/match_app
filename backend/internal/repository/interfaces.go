@@ -98,6 +98,7 @@ type IAdminRepository interface {
 	AddCredits(ctx context.Context, userID string, delta int) error
 	SetAdmin(ctx context.Context, userID string, admin bool) error
 	LogAction(ctx context.Context, log *domain.AdminLog) error
+	GetAuditLog(ctx context.Context, limit, offset int) ([]domain.AdminLog, error)
 	GetNotificationSettings(ctx context.Context, userID string) (*domain.NotificationSettings, error)
 	UpsertNotificationSettings(ctx context.Context, s *domain.NotificationSettings) error
 	GetPrivacySettings(ctx context.Context, userID string) (*domain.PrivacySettings, error)

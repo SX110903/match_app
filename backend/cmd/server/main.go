@@ -175,6 +175,8 @@ func main() {
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(authRequired)
 			r.Get("/users", adminHandler.ListUsers)
+			r.Delete("/users/{id}", adminHandler.DeleteUser)
+			r.Get("/audit-log", adminHandler.GetAuditLog)
 			r.Post("/freeze", adminHandler.FreezeUser)
 			r.Post("/unfreeze", adminHandler.UnfreezeUser)
 			r.Post("/vip", adminHandler.SetVIP)

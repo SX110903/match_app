@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/repository"
 )
+
+var sanitizer = bluemonday.StrictPolicy()
 
 type userService struct {
 	userRepo    repository.IUserRepository
@@ -58,16 +61,19 @@ func (s *userService) UpdateMe(ctx context.Context, userID string, req UpdatePro
 	}
 
 	if req.Name != nil {
-		profile.Name = *req.Name
+		profile.Name = sanitizer.Sanitize(*req.Name)
 	}
 	if req.Bio != nil {
-		profile.Bio = req.Bio
+		clean := sanitizer.Sanitize(*req.Bio)
+		profile.Bio = &clean
 	}
 	if req.Occupation != nil {
-		profile.Occupation = req.Occupation
+		clean := sanitizer.Sanitize(*req.Occupation)
+		profile.Occupation = &clean
 	}
 	if req.Location != nil {
-		profile.Location = req.Location
+		clean := sanitizer.Sanitize(*req.Location)
+		profile.Location = &clean
 	}
 
 	if err := s.profileRepo.Update(ctx, profile); err != nil {

@@ -81,6 +81,29 @@ func (r *adminRepository) SetAdmin(ctx context.Context, userID string, admin boo
 	return err
 }
 
+func (r *adminRepository) GetAuditLog(ctx context.Context, limit, offset int) ([]domain.AdminLog, error) {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, admin_id, target_id, action, details, created_at
+		 FROM admin_logs ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("getting audit log: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []domain.AdminLog
+	for rows.Next() {
+		var l domain.AdminLog
+		if err := rows.Scan(&l.ID, &l.AdminID, &l.TargetID, &l.Action, &l.Details, &l.CreatedAt); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+	return logs, rows.Err()
+}
+
 func (r *adminRepository) LogAction(ctx context.Context, log *domain.AdminLog) error {
 	ctx, cancel := r.db.WithTimeout(ctx)
 	defer cancel()

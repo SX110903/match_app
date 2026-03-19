@@ -97,6 +97,8 @@ func (h *WSHandler) handleInbound(userID string, raw []byte) {
 			return
 		}
 		h.handleChatMessage(userID, msg.MatchID, msg.Text)
+	case "ping":
+		h.hub.BroadcastToUser(userID, []byte(`{"type":"pong"}`))
 	}
 }
 

@@ -19,6 +19,7 @@ let ws: WebSocket | null = null
 let reconnectDelay = 1000
 let shouldReconnect = false
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let pingTimer: ReturnType<typeof setInterval> | null = null
 let currentToken: string | null = null
 const listeners = new Set<WSListener>()
 
@@ -33,6 +34,7 @@ export function disconnectWS(): void {
   shouldReconnect = false
   currentToken = null
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+  if (pingTimer) { clearInterval(pingTimer); pingTimer = null }
   if (ws) { ws.close(); ws = null }
 }
 
@@ -49,7 +51,13 @@ function _connect(): void {
 
   ws = new WebSocket(`${WS_URL}/ws?token=${encodeURIComponent(currentToken)}`)
 
-  ws.onopen = () => { reconnectDelay = 1000 }
+  ws.onopen = () => {
+    reconnectDelay = 1000
+    if (pingTimer) clearInterval(pingTimer)
+    pingTimer = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }))
+    }, 30_000)
+  }
 
   ws.onmessage = (event) => {
     try {
@@ -60,6 +68,7 @@ function _connect(): void {
 
   ws.onclose = () => {
     ws = null
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null }
     if (shouldReconnect && currentToken) {
       reconnectTimer = setTimeout(() => {
         reconnectDelay = Math.min(reconnectDelay * 2, 30_000)

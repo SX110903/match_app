@@ -73,6 +73,8 @@ type IAdminService interface {
 	SetVIPLevel(ctx context.Context, adminID, targetID string, level int) error
 	AdjustCredits(ctx context.Context, adminID, targetID string, delta int) error
 	SetAdmin(ctx context.Context, adminID, targetID string, isAdmin bool) error
+	DeleteUser(ctx context.Context, adminID, targetID string) error
+	GetAuditLog(ctx context.Context, adminID string, page, limit int) ([]domain.AdminLog, error)
 	GetNotificationSettings(ctx context.Context, userID string) (*domain.NotificationSettings, error)
 	SaveNotificationSettings(ctx context.Context, settings *domain.NotificationSettings) error
 	GetPrivacySettings(ctx context.Context, userID string) (*domain.PrivacySettings, error)
