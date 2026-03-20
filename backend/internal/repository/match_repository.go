@@ -150,18 +150,14 @@ func (r *matchRepository) GetCandidates(ctx context.Context, userID string, pref
 	defer cancel()
 
 	// When either the current user or a candidate lacks coordinates,
-	// ST_Distance_Sphere returns NULL and HAVING filters out the row.
-	// Use COALESCE so that missing coordinates result in 0 distance (include everyone).
+	// ST_Distance_Sphere returns NULL — frontend renders nothing in that case.
 	query := `
 		SELECT
 			up.id, up.user_id, up.name, up.age, up.bio, up.occupation, up.location,
-			COALESCE(
-				ST_Distance_Sphere(
-					POINT(up.longitude, up.latitude),
-					(SELECT POINT(longitude, latitude) FROM user_profiles WHERE user_id = ?)
-				) / 1000,
-				0
-			) as distance,
+			ST_Distance_Sphere(
+				POINT(up.longitude, up.latitude),
+				(SELECT POINT(longitude, latitude) FROM user_profiles WHERE user_id = ?)
+			) / 1000 as distance,
 			(SELECT GROUP_CONCAT(url ORDER BY sort_order SEPARATOR '|')
 			 FROM user_photos WHERE user_id = up.user_id) as photos_str,
 			(SELECT GROUP_CONCAT(interest SEPARATOR ',')
@@ -173,7 +169,7 @@ func (r *matchRepository) GetCandidates(ctx context.Context, userID string, pref
 			AND up.age BETWEEN ? AND ?
 			AND up.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = ?)
 			AND up.user_id NOT IN (SELECT user2_id FROM matches WHERE user1_id = ? UNION SELECT user1_id FROM matches WHERE user2_id = ?)
-		HAVING distance <= ?
+		HAVING distance IS NULL OR distance <= ?
 		ORDER BY distance ASC
 		LIMIT ? OFFSET ?`
 

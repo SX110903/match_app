@@ -92,13 +92,14 @@ func main() {
 	matchHandler := handler.NewMatchHandler(matchSvc)
 	msgHandler := handler.NewMessageHandler(msgSvc, hub)
 	photoHandler := handler.NewPhotoHandler(photoSvc)
-	postHandler := handler.NewPostHandler(postSvc)
+	postHandler := handler.NewPostHandler(postSvc, hub)
 	newsHandler := handler.NewNewsHandler(newsSvc, adminSvc)
 	adminHandler := handler.NewAdminHandler(adminSvc)
 	badgeHandler := handler.NewBadgeHandler(badgeSvc)
 	shopHandler := handler.NewShopHandler(shopSvc)
 	adHandler := handler.NewAdHandler(adSvc)
 	wsHandler := handler.NewWSHandler(hub, redisClient, msgSvc, matchSvc)
+	exploreHandler := handler.NewExploreHandler(service.NewExploreService(db))
 
 	r := chi.NewRouter()
 
@@ -148,6 +149,7 @@ func main() {
 			r.Post("/me/verify", badgeHandler.RequestVerify)
 			r.Get("/{id}/followers", badgeHandler.GetFollowers)
 			r.Get("/{id}/following", badgeHandler.GetFollowing)
+			r.Get("/{id}/profile", userHandler.GetPublicProfile)
 		})
 
 		r.With(authRequired).Post("/auth/ws-ticket", authHandler.WSTicket)
@@ -201,6 +203,12 @@ func main() {
 			r.Use(authRequired)
 			r.Get("/active", adHandler.GetActive)
 			r.Post("/{id}/click", adHandler.RegisterClick)
+		})
+
+		r.Route("/explore", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/users", exploreHandler.GetUsers)
+			r.Get("/posts", exploreHandler.GetPosts)
 		})
 
 		r.Route("/admin", func(r chi.Router) {

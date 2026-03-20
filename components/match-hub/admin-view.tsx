@@ -33,10 +33,9 @@ interface AdEntry {
   created_at: string
 }
 
+// influencer and verified are auto-assigned by the badge service — admins may only grant verified_gov
 const BADGE_OPTIONS = [
   { value: "none", label: "Sin badge" },
-  { value: "influencer", label: "Influencer" },
-  { value: "verified", label: "Verificado" },
   { value: "verified_gov", label: "Verificado Gov" },
 ]
 

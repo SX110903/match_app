@@ -28,6 +28,7 @@ type IUserService interface {
 	UpdateMe(ctx context.Context, userID string, req UpdateProfileRequest) error
 	DeleteMe(ctx context.Context, userID string) error
 	UpdatePreferences(ctx context.Context, userID string, req UpdatePreferencesRequest) error
+	GetPublicProfile(ctx context.Context, callerID, targetID string) (*PublicProfileResponse, error)
 }
 
 type IMatchService interface {
@@ -92,6 +93,22 @@ type IAdService interface {
 	AdminList(ctx context.Context, adminID string) ([]domain.Ad, error)
 }
 
+type IExploreService interface {
+	GetUsers(ctx context.Context, callerID, cursor string, limit int) ([]ExploreUserResponse, error)
+	GetPosts(ctx context.Context, callerID, cursor string, limit int) ([]PostResponse, error)
+}
+
+type ExploreUserResponse struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Age           int    `json:"age"`
+	Avatar        string `json:"avatar"`
+	Badge         string `json:"badge"`
+	VIPLevel      int    `json:"vip_level"`
+	FollowerCount int    `json:"follower_count"`
+	IsFollowing   bool   `json:"is_following"`
+}
+
 type IAdminService interface {
 	AssertAdmin(ctx context.Context, userID string) error
 	ListUsers(ctx context.Context, page, limit int) ([]repository.AdminUserSummary, error)
@@ -151,6 +168,19 @@ type UserProfileResponse struct {
 	IsFrozen      bool            `json:"is_frozen"`
 	VIPLevel      int             `json:"vip_level"`
 	Credits       int             `json:"credits"`
+	Badge         string          `json:"badge"`
+	FollowerCount int             `json:"follower_count"`
+}
+
+type PublicProfileResponse struct {
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Age           int             `json:"age"`
+	Bio           *string         `json:"bio,omitempty"`
+	Occupation    *string         `json:"occupation,omitempty"`
+	Location      *string         `json:"location,omitempty"`
+	Photos        []PhotoResponse `json:"photos"`
+	Interests     []string        `json:"interests"`
 	Badge         string          `json:"badge"`
 	FollowerCount int             `json:"follower_count"`
 }

@@ -99,6 +99,28 @@ func (h *Hub) BroadcastToUser(userID string, payload []byte) {
 	h.broadcast <- userBroadcast{userID: userID, payload: payload}
 }
 
+// BroadcastAll sends a JSON payload to all connected users except excludeUserID.
+func (h *Hub) BroadcastAll(data interface{}, excludeUserID string) {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for userID, conns := range h.users {
+		if userID == excludeUserID {
+			continue
+		}
+		for _, c := range conns {
+			select {
+			case c.send <- payload:
+			default:
+				// slow client — drop
+			}
+		}
+	}
+}
+
 // RegisterClient adds a client to the hub. Called from ws_handler.
 func (h *Hub) RegisterClient(c *Client) {
 	h.register <- c

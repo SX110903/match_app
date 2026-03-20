@@ -7,16 +7,18 @@ import (
 
 	"github.com/SX110903/match_app/backend/internal/auth"
 	"github.com/SX110903/match_app/backend/internal/service"
+	ws "github.com/SX110903/match_app/backend/internal/websocket"
 	"github.com/SX110903/match_app/backend/pkg/response"
 	"github.com/go-chi/chi/v5"
 )
 
 type PostHandler struct {
 	postSvc service.IPostService
+	hub     *ws.Hub
 }
 
-func NewPostHandler(postSvc service.IPostService) *PostHandler {
-	return &PostHandler{postSvc: postSvc}
+func NewPostHandler(postSvc service.IPostService, hub *ws.Hub) *PostHandler {
+	return &PostHandler{postSvc: postSvc, hub: hub}
 }
 
 func (h *PostHandler) GetFeed(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +70,20 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
+	go h.hub.BroadcastAll(map[string]interface{}{
+		"type": "new_post",
+		"post": map[string]interface{}{
+			"id":             post.ID,
+			"user_id":        post.UserID,
+			"content":        post.Content,
+			"image_url":      post.ImageURL,
+			"likes_count":    post.LikesCount,
+			"author_name":    post.AuthorName,
+			"author_avatar":  post.AuthorAvatar,
+			"created_at":     post.CreatedAt,
+			"is_liked_by_me": false,
+		},
+	}, claims.Subject)
 	response.Created(w, post)
 }
 

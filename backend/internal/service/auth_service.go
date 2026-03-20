@@ -138,7 +138,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 		return nil, domain.ErrInvalidCredentials
 	}
 
-	if !user.IsEmailVerified() {
+	if s.cfg.Security.RequireEmailVerification && !user.IsEmailVerified() {
 		return nil, domain.ErrEmailNotVerified
 	}
 

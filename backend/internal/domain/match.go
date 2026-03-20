@@ -35,5 +35,5 @@ type MatchWithProfile struct {
 
 type Candidate struct {
 	Profile  UserProfile `json:"profile"`
-	Distance float64     `json:"distance"`
+	Distance *float64    `json:"distance"` // null when coordinates unavailable
 }

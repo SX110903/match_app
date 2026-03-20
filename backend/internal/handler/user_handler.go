@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/SX110903/match_app/backend/internal/auth"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/service"
@@ -108,4 +109,25 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 	}
 
 	response.OK(w, map[string]string{"message": "preferences updated"})
+}
+
+func (h *UserHandler) GetPublicProfile(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "not authenticated")
+		return
+	}
+	targetID := chi.URLParam(r, "id")
+	profile, err := h.userSvc.GetPublicProfile(r.Context(), claims.Subject, targetID)
+	if err != nil {
+		switch err {
+		case domain.ErrNotFound:
+			response.NotFound(w, "profile not found")
+		default:
+			logger.Error().Err(err).Msg("get public profile failed")
+			response.InternalError(w)
+		}
+		return
+	}
+	response.OK(w, profile)
 }
