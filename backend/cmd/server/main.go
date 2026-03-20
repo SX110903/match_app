@@ -87,18 +87,19 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	authHandler := handler.NewAuthHandler(authSvc, cfg)
+	authHandler := handler.NewAuthHandler(authSvc, cfg, redisClient)
 	userHandler := handler.NewUserHandler(userSvc)
 	matchHandler := handler.NewMatchHandler(matchSvc)
 	msgHandler := handler.NewMessageHandler(msgSvc, hub)
 	photoHandler := handler.NewPhotoHandler(photoSvc)
-	postHandler := handler.NewPostHandler(postSvc)
+	postHandler := handler.NewPostHandler(postSvc, hub)
 	newsHandler := handler.NewNewsHandler(newsSvc, adminSvc)
 	adminHandler := handler.NewAdminHandler(adminSvc)
 	badgeHandler := handler.NewBadgeHandler(badgeSvc)
 	shopHandler := handler.NewShopHandler(shopSvc)
 	adHandler := handler.NewAdHandler(adSvc)
-	wsHandler := handler.NewWSHandler(hub, jwtSvc, blacklist, msgSvc, matchSvc)
+	wsHandler := handler.NewWSHandler(hub, redisClient, msgSvc, matchSvc)
+	exploreHandler := handler.NewExploreHandler(service.NewExploreService(db))
 
 	r := chi.NewRouter()
 
@@ -118,13 +119,14 @@ func main() {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.With(middleware.NewEndpointRateLimiter(redisClient, "register", 3, time.Hour)).
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "register", cfg.Security.RateLimitRegister, time.Hour)).
 				Post("/register", authHandler.Register)
-			r.With(middleware.NewEndpointRateLimiter(redisClient, "login", 5, 15*time.Minute)).
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "login", cfg.Security.RateLimitLogin, 15*time.Minute)).
 				Post("/login", authHandler.Login)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "login_2fa", 10, 5*time.Minute)).
 				Post("/login/2fa", authHandler.LoginWith2FA)
-			r.With(middleware.RequireAuth(jwtSvc, blacklist)).Post("/logout", authHandler.Logout)
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "logout", cfg.Security.RateLimitLogout, time.Minute)).
+				With(middleware.RequireAuth(jwtSvc, blacklist)).Post("/logout", authHandler.Logout)
 			r.Post("/refresh", authHandler.RefreshToken)
 			r.Post("/verify-email", authHandler.VerifyEmail)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "forgot_password", 3, time.Hour)).
@@ -147,7 +149,10 @@ func main() {
 			r.Post("/me/verify", badgeHandler.RequestVerify)
 			r.Get("/{id}/followers", badgeHandler.GetFollowers)
 			r.Get("/{id}/following", badgeHandler.GetFollowing)
+			r.Get("/{id}/profile", userHandler.GetPublicProfile)
 		})
+
+		r.With(authRequired).Post("/auth/ws-ticket", authHandler.WSTicket)
 
 		r.Route("/auth/2fa", func(r chi.Router) {
 			r.Use(authRequired)
@@ -162,6 +167,7 @@ func main() {
 			r.Post("/swipe", matchHandler.Swipe)
 			r.Get("/", matchHandler.GetMatches)
 			r.Get("/{id}", matchHandler.GetMatch)
+			r.Delete("/{id}", matchHandler.DeleteMatch)
 			r.Get("/{matchId}/messages", msgHandler.GetMessages)
 			r.Post("/{matchId}/messages", msgHandler.SendMessage)
 			r.Put("/{matchId}/messages/read", msgHandler.MarkRead)
@@ -197,6 +203,12 @@ func main() {
 			r.Use(authRequired)
 			r.Get("/active", adHandler.GetActive)
 			r.Post("/{id}/click", adHandler.RegisterClick)
+		})
+
+		r.Route("/explore", func(r chi.Router) {
+			r.Use(authRequired)
+			r.Get("/users", exploreHandler.GetUsers)
+			r.Get("/posts", exploreHandler.GetPosts)
 		})
 
 		r.Route("/admin", func(r chi.Router) {

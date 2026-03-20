@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/repository"
 	"github.com/google/uuid"
 )
+
+var postSanitizer = bluemonday.StrictPolicy()
 
 type postService struct {
 	postRepo repository.IPostRepository
@@ -41,7 +44,7 @@ func (s *postService) CreatePost(ctx context.Context, userID, content string, im
 	post := &domain.Post{
 		ID:        uuid.New().String(),
 		UserID:    userID,
-		Content:   content,
+		Content:   postSanitizer.Sanitize(content),
 		ImageURL:  imageURL,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -102,7 +105,7 @@ func (s *postService) AddComment(ctx context.Context, userID, postID, content st
 		ID:        uuid.New().String(),
 		PostID:    postID,
 		UserID:    userID,
-		Content:   content,
+		Content:   postSanitizer.Sanitize(content),
 		CreatedAt: time.Now(),
 	}
 	created, err := s.postRepo.AddComment(ctx, comment)

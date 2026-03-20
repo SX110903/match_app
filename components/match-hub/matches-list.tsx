@@ -1,15 +1,36 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
+import { Trash2 } from "lucide-react"
 import { Match } from "@/lib/types"
 import { BadgeIcon } from "@/components/match-hub/badge"
+import { apiClient, APIError } from "@/lib/api-client"
 
 interface MatchesListProps {
   matches: Match[]
   onSelectMatch: (match: Match) => void
+  onMatchDeleted?: (matchId: string) => void
 }
 
-export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
+export function MatchesList({ matches, onSelectMatch, onMatchDeleted }: MatchesListProps) {
+  const [confirmDelete, setConfirmDelete] = useState<Match | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    try {
+      await apiClient(`/api/v1/matches/${confirmDelete.id}`, { method: "DELETE" })
+      onMatchDeleted?.(confirmDelete.id)
+      setConfirmDelete(null)
+    } catch (e) {
+      console.error("[MatchesList] delete failed", e instanceof APIError ? e.message : e)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const formatTime = (date: Date) => {
     const now = new Date()
     const diff = now.getTime() - date.getTime()
@@ -27,6 +48,32 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <p className="text-sm text-card-foreground mb-1 font-semibold">¿Eliminar match?</p>
+            <p className="text-xs text-muted-foreground mb-6">
+              El match con <span className="font-medium">{confirmDelete.profile.name}</span> se eliminará solo para ti.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-2 rounded-xl border border-border text-sm font-medium text-card-foreground hover:bg-muted/50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Eliminando..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Nuevos matches */}
       {newMatches.length > 0 && (
         <div className="p-4">
@@ -71,13 +118,16 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
             </p>
           ) : (
             conversations.map((match, index) => (
-              <motion.button
+              <motion.div
                 key={match.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
+                className="flex items-center gap-1"
+              >
+              <button
                 onClick={() => onSelectMatch(match)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                className="flex-1 flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors min-w-0"
               >
                 <div className="relative">
                   <div className="w-16 h-16 rounded-full overflow-hidden">
@@ -108,7 +158,15 @@ export function MatchesList({ matches, onSelectMatch }: MatchesListProps) {
                     {match.lastMessage}
                   </p>
                 </div>
-              </motion.button>
+              </button>
+              <button
+                onClick={() => setConfirmDelete(match)}
+                className="flex-shrink-0 p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg"
+                aria-label="Eliminar match"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              </motion.div>
             ))
           )}
         </div>

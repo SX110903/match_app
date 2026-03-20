@@ -58,6 +58,10 @@ func (h *NewsHandler) GetArticle(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, article)
 }
 
+var validNewsCategories = map[string]bool{
+	"Tendencias": true, "Tech": true, "Seguridad": true, "Negocios": true,
+}
+
 func (h *NewsHandler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	claims, ok := auth.ClaimsFromContext(r.Context())
 	if !ok {
@@ -71,6 +75,10 @@ func (h *NewsHandler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	var req service.CreateNewsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w, "invalid request body")
+		return
+	}
+	if req.Category != "" && !validNewsCategories[req.Category] {
+		response.BadRequest(w, "invalid category: must be Tendencias, Tech, Seguridad or Negocios")
 		return
 	}
 	article, err := h.newsSvc.Create(r.Context(), claims.Subject, req)
@@ -97,13 +105,18 @@ func (h *NewsHandler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "invalid request body")
 		return
 	}
+	if req.Category != nil && *req.Category != "" && !validNewsCategories[*req.Category] {
+		response.BadRequest(w, "invalid category: must be Tendencias, Tech, Seguridad or Negocios")
+		return
+	}
 	article, err := h.newsSvc.Update(r.Context(), id, req)
 	if err != nil {
-		if err == domain.ErrNotFound {
+		switch err {
+		case domain.ErrNotFound:
 			response.NotFound(w, "article not found")
-			return
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	response.OK(w, article)

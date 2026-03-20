@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/SX110903/match_app/backend/internal/auth"
 	"github.com/SX110903/match_app/backend/internal/config"
 	"github.com/SX110903/match_app/backend/internal/domain"
@@ -15,12 +18,31 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc    service.IAuthService
+	authSvc      service.IAuthService
+	redis        *redis.Client
 	secureCookie bool
 }
 
-func NewAuthHandler(authSvc service.IAuthService, cfg *config.Config) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, secureCookie: cfg.IsProduction()}
+func NewAuthHandler(authSvc service.IAuthService, cfg *config.Config, redisClient *redis.Client) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, redis: redisClient, secureCookie: cfg.IsProduction()}
+}
+
+// WSTicket emite un ticket de un solo uso (TTL 30s) para autenticar la conexión WS.
+// El JWT nunca viaja en la URL gracias a este mecanismo.
+func (h *AuthHandler) WSTicket(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "not authenticated")
+		return
+	}
+	ticket := uuid.New().String()
+	key := fmt.Sprintf("ws:ticket:%s", ticket)
+	if err := h.redis.Set(r.Context(), key, claims.Subject, 30*time.Second).Err(); err != nil {
+		logger.Error().Err(err).Msg("failed to store ws ticket")
+		response.InternalError(w)
+		return
+	}
+	response.OK(w, map[string]string{"ticket": ticket})
 }
 
 func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, token string) {

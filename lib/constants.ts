@@ -13,3 +13,8 @@ export const MAX_CREDITS_DELTA = 10000
 export const MAX_POST_LENGTH = 2000
 export const MAX_PHOTO_SIZE_MB = 5
 export const VERIFY_BADGE_COST = 50000
+export const CANDIDATES_LIMIT = 20
+export const MESSAGES_LIMIT = 50
+export const MAX_PHOTOS = 6
+export const SUPER_LIKES_PER_DAY = 5
+export const LIVE_FEED_NEW_POSTS = (n: number) => `↑ ${n} nuevo${n > 1 ? 's posts' : ' post'}`

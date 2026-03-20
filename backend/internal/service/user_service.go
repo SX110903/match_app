@@ -93,6 +93,36 @@ func (s *userService) DeleteMe(ctx context.Context, userID string) error {
 	return s.userRepo.SoftDelete(ctx, userID)
 }
 
+func (s *userService) GetPublicProfile(ctx context.Context, callerID, targetID string) (*PublicProfileResponse, error) {
+	user, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil {
+		return nil, domain.ErrNotFound
+	}
+	if user.IsDeleted() || user.IsFrozen {
+		return nil, domain.ErrNotFound
+	}
+	profile, err := s.profileRepo.GetByUserID(ctx, targetID)
+	if err != nil {
+		return nil, domain.ErrNotFound
+	}
+	photos := make([]PhotoResponse, len(profile.PhotoObjects))
+	for i, p := range profile.PhotoObjects {
+		photos[i] = PhotoResponse{ID: p.ID, URL: p.URL}
+	}
+	return &PublicProfileResponse{
+		ID:            user.ID,
+		Name:          profile.Name,
+		Age:           profile.Age,
+		Bio:           profile.Bio,
+		Occupation:    profile.Occupation,
+		Location:      profile.Location,
+		Photos:        photos,
+		Interests:     profile.Interests,
+		Badge:         user.Badge,
+		FollowerCount: user.FollowerCount,
+	}, nil
+}
+
 func (s *userService) UpdatePreferences(ctx context.Context, userID string, req UpdatePreferencesRequest) error {
 	prefs := &domain.UserPreferences{
 		UserID:        userID,

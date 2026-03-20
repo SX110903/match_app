@@ -57,9 +57,13 @@ type EmailConfig struct {
 }
 
 type SecurityConfig struct {
-	EncryptionKey  string
-	AllowedOrigins []string
-	FrontendURL    string
+	EncryptionKey              string
+	AllowedOrigins             []string
+	FrontendURL                string
+	RateLimitRegister          int
+	RateLimitLogin             int
+	RateLimitLogout            int
+	RequireEmailVerification   bool
 }
 
 func Load() (*Config, error) {
@@ -123,8 +127,24 @@ func Load() (*Config, error) {
 
 	// Security
 	cfg.Security.EncryptionKey = requireEnv("ENCRYPTION_KEY")
-	cfg.Security.AllowedOrigins = strings.Split(viper.GetString("ALLOWED_ORIGINS"), ",")
+	rawOrigins := strings.Split(viper.GetString("ALLOWED_ORIGINS"), ",")
+	allowedOrigins := make([]string, 0, len(rawOrigins))
+	for _, o := range rawOrigins {
+		if t := strings.TrimSpace(o); t != "" {
+			allowedOrigins = append(allowedOrigins, t)
+		}
+	}
+	cfg.Security.AllowedOrigins = allowedOrigins
 	cfg.Security.FrontendURL = requireEnv("FRONTEND_URL")
+
+	// Rate limiting (configurable, with sane defaults)
+	viper.SetDefault("RATE_LIMIT_REGISTER", 3)
+	viper.SetDefault("RATE_LIMIT_LOGIN", 5)
+	viper.SetDefault("RATE_LIMIT_LOGOUT", 10)
+	cfg.Security.RateLimitRegister = viper.GetInt("RATE_LIMIT_REGISTER")
+	cfg.Security.RateLimitLogin = viper.GetInt("RATE_LIMIT_LOGIN")
+	cfg.Security.RateLimitLogout = viper.GetInt("RATE_LIMIT_LOGOUT")
+	cfg.Security.RequireEmailVerification = viper.GetBool("REQUIRE_EMAIL_VERIFICATION")
 
 	return cfg, nil
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Bell, Lock, Search, ChevronRight } from "lucide-react"
+import { X, Bell, Lock, Search, ChevronRight, ShieldCheck, ShieldOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient, APIError } from "@/lib/api-client"
@@ -97,6 +97,53 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState("")
   const [loading, setLoading] = useState(true)
+
+  // 2FA state
+  const [twoFAStep, setTwoFAStep] = useState<"idle" | "setup" | "verify" | "disable">("idle")
+  const [qrDataURL, setQrDataURL] = useState("")
+  const [twoFACode, setTwoFACode] = useState("")
+  const [twoFAPassword, setTwoFAPassword] = useState("")
+  const [twoFAError, setTwoFAError] = useState("")
+  const [twoFASaving, setTwoFASaving] = useState(false)
+  const is2FAEnabled = user?.totp_enabled ?? false
+
+  const handle2FASetup = async () => {
+    setTwoFASaving(true)
+    setTwoFAError("")
+    try {
+      const data = await apiClient<{ qr_data_url: string }>("/api/v1/auth/2fa/setup", { method: "POST" })
+      setQrDataURL(data?.qr_data_url ?? "")
+      setTwoFAStep("setup")
+    } catch (e) {
+      setTwoFAError(e instanceof APIError ? e.message : "Error al configurar 2FA")
+    } finally {
+      setTwoFASaving(false) }
+  }
+
+  const handle2FAVerify = async () => {
+    setTwoFASaving(true)
+    setTwoFAError("")
+    try {
+      await apiClient("/api/v1/auth/2fa/verify", { method: "POST", body: { code: twoFACode } })
+      setTwoFAStep("idle")
+      setTwoFACode("")
+      setQrDataURL("")
+    } catch (e) {
+      setTwoFAError(e instanceof APIError ? e.message : "Código incorrecto")
+    } finally { setTwoFASaving(false) }
+  }
+
+  const handle2FADisable = async () => {
+    setTwoFASaving(true)
+    setTwoFAError("")
+    try {
+      await apiClient("/api/v1/auth/2fa/disable", { method: "POST", body: { password: twoFAPassword } })
+      setTwoFAStep("idle")
+      setTwoFAPassword("")
+    } catch (e) {
+      setTwoFAError(e instanceof APIError ? e.message : "Contraseña incorrecta")
+    } finally { setTwoFASaving(false) }
+  }
 
   useEffect(() => {
     async function load() {
@@ -284,6 +331,75 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
               onChange={(v) => savePrivacy({ ...privacy, incognito_mode: v })}
             />
           </SettingRow>
+        </Section>
+
+        {/* 2FA */}
+        <Section title="Seguridad">
+          <SettingRow label="Autenticación de dos factores" description={is2FAEnabled ? "Activa — escanea con tu app TOTP" : "Desactivada"} last>
+            {is2FAEnabled ? (
+              <button
+                onClick={() => { setTwoFAStep("disable"); setTwoFAError("") }}
+                className="flex items-center gap-1 text-xs text-destructive font-medium px-3 py-1.5 rounded-lg border border-destructive/30 hover:bg-destructive/10 transition-colors"
+              >
+                <ShieldOff className="w-3.5 h-3.5" />
+                Desactivar
+              </button>
+            ) : (
+              <button
+                onClick={handle2FASetup}
+                disabled={twoFASaving}
+                className="flex items-center gap-1 text-xs text-primary font-medium px-3 py-1.5 rounded-lg border border-primary/30 hover:bg-primary/10 transition-colors disabled:opacity-50"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {twoFASaving ? "Cargando..." : "Activar"}
+              </button>
+            )}
+          </SettingRow>
+
+          {/* Setup step: show QR */}
+          {twoFAStep === "setup" && qrDataURL && (
+            <div className="px-4 pb-4 pt-2 border-t border-border space-y-3">
+              <p className="text-xs text-muted-foreground">Escanea el código QR con Google Authenticator u otra app TOTP:</p>
+              <img src={qrDataURL} alt="QR 2FA" className="w-40 h-40 mx-auto rounded-lg" />
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Código de 6 dígitos"
+                value={twoFACode}
+                onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ""))}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary text-center tracking-widest"
+              />
+              {twoFAError && <p className="text-xs text-destructive text-center">{twoFAError}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => { setTwoFAStep("idle"); setQrDataURL(""); setTwoFACode("") }} className="flex-1 py-2 text-xs rounded-lg border border-border text-muted-foreground">Cancelar</button>
+                <button onClick={handle2FAVerify} disabled={twoFASaving || twoFACode.length < 6} className="flex-1 py-2 text-xs rounded-lg bg-primary text-primary-foreground font-medium disabled:opacity-50">
+                  {twoFASaving ? "Verificando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Disable step: require password */}
+          {twoFAStep === "disable" && (
+            <div className="px-4 pb-4 pt-2 border-t border-border space-y-3">
+              <p className="text-xs text-muted-foreground">Introduce tu contraseña actual para desactivar 2FA:</p>
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={twoFAPassword}
+                onChange={(e) => setTwoFAPassword(e.target.value)}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {twoFAError && <p className="text-xs text-destructive text-center">{twoFAError}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => { setTwoFAStep("idle"); setTwoFAPassword("") }} className="flex-1 py-2 text-xs rounded-lg border border-border text-muted-foreground">Cancelar</button>
+                <button onClick={handle2FADisable} disabled={twoFASaving || !twoFAPassword} className="flex-1 py-2 text-xs rounded-lg bg-destructive text-destructive-foreground font-medium disabled:opacity-50">
+                  {twoFASaving ? "Desactivando..." : "Desactivar"}
+                </button>
+              </div>
+            </div>
+          )}
         </Section>
 
         {/* Account */}

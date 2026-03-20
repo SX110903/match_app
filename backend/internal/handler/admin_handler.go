@@ -54,11 +54,12 @@ func (h *AdminHandler) FreezeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.adminSvc.FreezeUser(r.Context(), claims.Subject, req.UserID); err != nil {
-		if err == domain.ErrForbidden {
+		switch err {
+		case domain.ErrForbidden:
 			response.Forbidden(w, "admin required")
-			return
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	response.OK(w, map[string]string{"status": "frozen"})
@@ -76,11 +77,12 @@ func (h *AdminHandler) UnfreezeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.adminSvc.UnfreezeUser(r.Context(), claims.Subject, req.UserID); err != nil {
-		if err == domain.ErrForbidden {
+		switch err {
+		case domain.ErrForbidden:
 			response.Forbidden(w, "admin required")
-			return
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	response.OK(w, map[string]string{"status": "unfrozen"})
@@ -102,11 +104,14 @@ func (h *AdminHandler) SetVIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.adminSvc.SetVIPLevel(r.Context(), claims.Subject, req.UserID, req.VIPLevel); err != nil {
-		if err == domain.ErrForbidden {
+		switch err {
+		case domain.ErrForbidden:
 			response.Forbidden(w, "admin required")
-			return
+		case domain.ErrNotFound:
+			response.NotFound(w, "user not found")
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	response.OK(w, map[string]int{"vip_level": req.VIPLevel})
@@ -121,6 +126,11 @@ func (h *AdminHandler) AdjustCredits(w http.ResponseWriter, r *http.Request) {
 	var req service.AdjustCreditsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w, "invalid request body")
+		return
+	}
+	const maxCreditsDelta = 10000
+	if req.Delta > maxCreditsDelta || req.Delta < -maxCreditsDelta {
+		response.BadRequest(w, "delta must be between -10000 and 10000")
 		return
 	}
 	if err := h.adminSvc.AdjustCredits(r.Context(), claims.Subject, req.UserID, req.Delta); err != nil {
@@ -206,11 +216,12 @@ func (h *AdminHandler) GetAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 	logs, err := h.adminSvc.GetAuditLog(r.Context(), claims.Subject, page, 50)
 	if err != nil {
-		if err == domain.ErrForbidden {
+		switch err {
+		case domain.ErrForbidden:
 			response.Forbidden(w, "admin required")
-			return
+		default:
+			response.InternalError(w)
 		}
-		response.InternalError(w)
 		return
 	}
 	if logs == nil {

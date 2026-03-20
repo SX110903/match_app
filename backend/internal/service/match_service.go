@@ -84,6 +84,17 @@ func (s *matchService) Swipe(ctx context.Context, userID, targetID string, direc
 	return &SwipeResponse{IsMatch: false}, nil
 }
 
+func (s *matchService) DeleteMatch(ctx context.Context, userID, matchID string) error {
+	match, err := s.matchRepo.GetMatchByID(ctx, matchID)
+	if err != nil {
+		return domain.ErrNotFound
+	}
+	if match.User1ID != userID && match.User2ID != userID {
+		return domain.ErrForbidden
+	}
+	return s.matchRepo.DeleteMatch(ctx, matchID, userID)
+}
+
 func (s *matchService) GetMatches(ctx context.Context, userID string) ([]domain.MatchWithProfile, error) {
 	return s.matchRepo.GetMatchesByUserID(ctx, userID)
 }

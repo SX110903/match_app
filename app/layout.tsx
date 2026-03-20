@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
+import { ErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -39,9 +40,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased bg-background">
         <AuthProvider>
-          <div className="max-w-[430px] mx-auto h-screen relative overflow-hidden">
-            {children}
-          </div>
+          <ErrorBoundary>
+            <div className="max-w-[430px] mx-auto h-screen relative overflow-hidden">
+              {children}
+            </div>
+          </ErrorBoundary>
         </AuthProvider>
         <Analytics />
       </body>

@@ -70,6 +70,10 @@ func (r *matchRepository) GetMatchByID(ctx context.Context, id string) (*domain.
 	return &match, nil
 }
 
+// GetMatchesByUserID devuelve todos los matches de un usuario con el perfil del otro participante.
+// TODO(perf-v2): las subqueries last_message y unread_count son correlacionadas (N+1).
+// Para escalar, desnormalizar en columnas last_message_text/last_message_at/unread_u1/unread_u2
+// en la tabla matches y actualizar tras cada INSERT en messages.
 func (r *matchRepository) GetMatchesByUserID(ctx context.Context, userID string) ([]domain.MatchWithProfile, error) {
 	ctx, cancel := r.db.WithTimeout(ctx)
 	defer cancel()
@@ -77,16 +81,21 @@ func (r *matchRepository) GetMatchesByUserID(ctx context.Context, userID string)
 	query := `
 		SELECT
 			m.id, m.user1_id, m.user2_id, m.created_at,
-			up.id as profile_id, up.user_id, up.name, up.age, up.bio, up.occupation, up.location,
+			COALESCE(up.id, '')          as profile_id,
+			COALESCE(up.user_id, '')     as profile_user_id,
+			COALESCE(up.name, '')        as name,
+			COALESCE(up.age, 0)          as age,
+			up.bio, up.occupation, up.location,
 			(SELECT text FROM messages WHERE match_id = m.id ORDER BY created_at DESC LIMIT 1) as last_message,
 			(SELECT COUNT(*) FROM messages WHERE match_id = m.id AND sender_id != ? AND read_at IS NULL) as unread_count,
 			(SELECT GROUP_CONCAT(url ORDER BY sort_order SEPARATOR '|') FROM user_photos WHERE user_id = up.user_id) as photos_str
 		FROM matches m
-		JOIN user_profiles up ON up.user_id = CASE
+		LEFT JOIN user_profiles up ON up.user_id = CASE
 			WHEN m.user1_id = ? THEN m.user2_id
 			ELSE m.user1_id
 		END
 		WHERE (m.user1_id = ? OR m.user2_id = ?)
+		  AND m.deleted_at IS NULL
 		ORDER BY m.created_at DESC`
 
 	rows, err := r.db.QueryxContext(ctx, query, userID, userID, userID, userID)
@@ -117,23 +126,38 @@ func (r *matchRepository) GetMatchesByUserID(ctx context.Context, userID string)
 	return results, rows.Err()
 }
 
+func (r *matchRepository) DeleteMatch(ctx context.Context, matchID, userID string) error {
+	ctx, cancel := r.db.WithTimeout(ctx)
+	defer cancel()
+
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE matches SET deleted_at = NOW()
+		 WHERE id = ? AND (user1_id = ? OR user2_id = ?) AND deleted_at IS NULL`,
+		matchID, userID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("deleting match: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *matchRepository) GetCandidates(ctx context.Context, userID string, prefs *domain.UserPreferences, limit, offset int) ([]domain.Candidate, error) {
 	ctx, cancel := r.db.WithTimeout(ctx)
 	defer cancel()
 
 	// When either the current user or a candidate lacks coordinates,
-	// ST_Distance_Sphere returns NULL and HAVING filters out the row.
-	// Use COALESCE so that missing coordinates result in 0 distance (include everyone).
+	// ST_Distance_Sphere returns NULL — frontend renders nothing in that case.
 	query := `
 		SELECT
 			up.id, up.user_id, up.name, up.age, up.bio, up.occupation, up.location,
-			COALESCE(
-				ST_Distance_Sphere(
-					POINT(up.longitude, up.latitude),
-					(SELECT POINT(longitude, latitude) FROM user_profiles WHERE user_id = ?)
-				) / 1000,
-				0
-			) as distance,
+			ST_Distance_Sphere(
+				POINT(up.longitude, up.latitude),
+				(SELECT POINT(longitude, latitude) FROM user_profiles WHERE user_id = ?)
+			) / 1000 as distance,
 			(SELECT GROUP_CONCAT(url ORDER BY sort_order SEPARATOR '|')
 			 FROM user_photos WHERE user_id = up.user_id) as photos_str,
 			(SELECT GROUP_CONCAT(interest SEPARATOR ',')
@@ -145,7 +169,7 @@ func (r *matchRepository) GetCandidates(ctx context.Context, userID string, pref
 			AND up.age BETWEEN ? AND ?
 			AND up.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = ?)
 			AND up.user_id NOT IN (SELECT user2_id FROM matches WHERE user1_id = ? UNION SELECT user1_id FROM matches WHERE user2_id = ?)
-		HAVING distance <= ?
+		HAVING distance IS NULL OR distance <= ?
 		ORDER BY distance ASC
 		LIMIT ? OFFSET ?`
 

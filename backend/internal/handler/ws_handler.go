@@ -3,10 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/SX110903/match_app/backend/internal/auth"
+	"github.com/redis/go-redis/v9"
 	"github.com/SX110903/match_app/backend/internal/service"
 	ws "github.com/SX110903/match_app/backend/internal/websocket"
 	"github.com/SX110903/match_app/backend/pkg/logger"
@@ -29,46 +30,39 @@ type inboundWSMessage struct {
 
 type WSHandler struct {
 	hub      *ws.Hub
-	jwtSvc   auth.IJWTService
-	blklist  auth.ITokenBlacklist
+	redis    *redis.Client
 	msgSvc   service.IMessageService
 	matchSvc service.IMatchService
 }
 
 func NewWSHandler(
 	hub *ws.Hub,
-	jwtSvc auth.IJWTService,
-	blklist auth.ITokenBlacklist,
+	redisClient *redis.Client,
 	msgSvc service.IMessageService,
 	matchSvc service.IMatchService,
 ) *WSHandler {
 	return &WSHandler{
 		hub:      hub,
-		jwtSvc:   jwtSvc,
-		blklist:  blklist,
+		redis:    redisClient,
 		msgSvc:   msgSvc,
 		matchSvc: matchSvc,
 	}
 }
 
 // ServeWS upgrades the HTTP connection to WebSocket.
-// The JWT is passed as a query parameter: GET /ws?token=<access_token>
+// Autenticación mediante ticket de un solo uso (30s TTL) — el JWT nunca viaja en la URL.
 func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
-	tokenStr := r.URL.Query().Get("token")
-	if tokenStr == "" {
-		response.Unauthorized(w, "missing token")
+	ticket := r.URL.Query().Get("ticket")
+	if ticket == "" {
+		response.Unauthorized(w, "missing ticket")
 		return
 	}
 
-	claims, err := h.jwtSvc.ValidateAccessToken(tokenStr)
-	if err != nil {
-		response.Unauthorized(w, "invalid token")
-		return
-	}
-
-	blacklisted, err := h.blklist.IsBlacklisted(r.Context(), claims.ID)
-	if err != nil || blacklisted {
-		response.Unauthorized(w, "token revoked")
+	// GetDel: atómico — lee y borra en una sola operación, evitando reuso del ticket
+	key := fmt.Sprintf("ws:ticket:%s", ticket)
+	userID, err := h.redis.GetDel(r.Context(), key).Result()
+	if err != nil || userID == "" {
+		response.Unauthorized(w, "invalid or expired ticket")
 		return
 	}
 
@@ -78,7 +72,7 @@ func (h *WSHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := ws.NewClient(h.hub, conn, claims.Subject)
+	client := ws.NewClient(h.hub, conn, userID)
 	h.hub.RegisterClient(client)
 
 	go client.WritePump()

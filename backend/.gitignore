@@ -4,6 +4,8 @@ bin/
 
 # Environment
 .env
+.env.*
+!.env.example
 
 # Keys (NEVER commit RSA keys or AES keys)
 keys/

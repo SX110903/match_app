@@ -1,8 +1,11 @@
 "use client"
 
+import { useRef } from "react"
 import { motion } from "framer-motion"
 import { X, Heart, Star, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const SWIPE_COOLDOWN_MS = 800
 
 interface ActionButtonsProps {
   onLike: () => void
@@ -19,11 +22,20 @@ export function ActionButtons({
   onUndo,
   canUndo,
 }: ActionButtonsProps) {
+  const cooldownRef = useRef(false)
+
+  const withCooldown = (fn: () => void) => () => {
+    if (cooldownRef.current) return
+    cooldownRef.current = true
+    fn()
+    setTimeout(() => { cooldownRef.current = false }, SWIPE_COOLDOWN_MS)
+  }
+
   return (
     <div className="flex items-center justify-center gap-4">
       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
         <Button
-          onClick={onUndo}
+          onClick={withCooldown(onUndo)}
           disabled={!canUndo}
           size="lg"
           variant="outline"
@@ -36,7 +48,7 @@ export function ActionButtons({
 
       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
         <Button
-          onClick={onDislike}
+          onClick={withCooldown(onDislike)}
           size="lg"
           variant="outline"
           className="w-16 h-16 rounded-full p-0 border-2 border-destructive/50 hover:border-destructive hover:bg-destructive/10"
@@ -48,7 +60,7 @@ export function ActionButtons({
 
       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
         <Button
-          onClick={onSuperLike}
+          onClick={withCooldown(onSuperLike)}
           size="lg"
           variant="outline"
           className="w-12 h-12 rounded-full p-0 border-2 border-blue-500/50 hover:border-blue-500 hover:bg-blue-500/10"
@@ -60,7 +72,7 @@ export function ActionButtons({
 
       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
         <Button
-          onClick={onLike}
+          onClick={withCooldown(onLike)}
           size="lg"
           variant="outline"
           className="w-16 h-16 rounded-full p-0 border-2 border-green-500/50 hover:border-green-500 hover:bg-green-500/10"

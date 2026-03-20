@@ -6,7 +6,7 @@ export interface Profile {
   age: number
   bio: string
   images: string[]
-  distance: number
+  distance: number | null
   occupation: string
   interests: string[]
   badge?: BadgeType

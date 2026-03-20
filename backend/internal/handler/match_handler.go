@@ -75,6 +75,30 @@ func (h *MatchHandler) Swipe(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, result)
 }
 
+func (h *MatchHandler) DeleteMatch(w http.ResponseWriter, r *http.Request) {
+	claims, ok := auth.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "not authenticated")
+		return
+	}
+
+	matchID := chi.URLParam(r, "id")
+	if err := h.matchSvc.DeleteMatch(r.Context(), claims.Subject, matchID); err != nil {
+		switch err {
+		case domain.ErrNotFound:
+			response.NotFound(w, "match not found")
+		case domain.ErrForbidden:
+			response.Forbidden(w, "access denied")
+		default:
+			logger.Error().Err(err).Str("match_id", matchID).Msg("delete match failed")
+			response.InternalError(w)
+		}
+		return
+	}
+
+	response.OK(w, map[string]string{"message": "match deleted"})
+}
+
 func (h *MatchHandler) GetMatches(w http.ResponseWriter, r *http.Request) {
 	claims, ok := auth.ClaimsFromContext(r.Context())
 	if !ok {
