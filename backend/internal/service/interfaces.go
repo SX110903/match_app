@@ -35,6 +35,7 @@ type IMatchService interface {
 	Swipe(ctx context.Context, userID, targetID string, direction domain.SwipeDirection) (*SwipeResponse, error)
 	GetMatches(ctx context.Context, userID string) ([]domain.MatchWithProfile, error)
 	GetMatch(ctx context.Context, userID, matchID string) (*domain.MatchWithProfile, error)
+	DeleteMatch(ctx context.Context, userID, matchID string) error
 }
 
 type IMessageService interface {

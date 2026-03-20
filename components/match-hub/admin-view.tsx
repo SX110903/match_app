@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useAuth } from "@/lib/auth-context"
 import { Shield, SnowflakeIcon, Star, Coins, ChevronDown, ChevronUp, RefreshCw, ArrowLeft, Trash2, ClipboardList, Users, Megaphone, Plus, ToggleLeft, ToggleRight, X } from "lucide-react"
 import { apiClient, APIError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -299,7 +300,7 @@ const ACTION_LABELS: Record<string, string> = {
   delete_user: "Eliminar",
 }
 
-function AuditTab() {
+function AuditTab({ onToast }: { onToast: (msg: string, type: "success" | "error") => void }) {
   const [logs, setLogs] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -307,8 +308,12 @@ function AuditTab() {
     setLoading(true)
     apiClient<AuditEntry[]>("/api/v1/admin/audit-log")
       .then((data) => setLogs(data ?? []))
-      .catch(() => {})
+      .catch((e) => {
+        console.error("[AuditTab] load failed", e)
+        onToast(e instanceof APIError ? e.message : "Error cargando auditoría", "error")
+      })
       .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const formatDate = (s: string) =>
@@ -357,7 +362,10 @@ function AdsTab({ onToast }: { onToast: (msg: string, type: "success" | "error")
     try {
       const data = await apiClient<AdEntry[]>("/api/v1/admin/ads")
       setAds(data ?? [])
-    } catch { /* silent */ } finally { setLoading(false) }
+    } catch (e) {
+      console.error("[AdsTab] load failed", e)
+      onToast(e instanceof APIError ? e.message : "Error cargando anuncios", "error")
+    } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { loadAds() }, [loadAds])
@@ -504,12 +512,22 @@ function AdsTab({ onToast }: { onToast: (msg: string, type: "success" | "error")
 type AdminTab = "users" | "audit" | "ads"
 
 export function AdminView({ onClose }: { onClose?: () => void }) {
+  const { user } = useAuth()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<"all" | "frozen" | "admin">("all")
   const [activeTab, setActiveTab] = useState<AdminTab>("users")
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null)
+
+  if (!user?.is_admin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+        <Shield className="w-10 h-10 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Acceso restringido a administradores</p>
+      </div>
+    )
+  }
 
   const showToast = useCallback((msg: string, type: "success" | "error") => {
     setToast({ msg, type })
@@ -608,7 +626,7 @@ export function AdminView({ onClose }: { onClose?: () => void }) {
       </div>
 
       {activeTab === "audit" ? (
-        <AuditTab />
+        <AuditTab onToast={showToast} />
       ) : activeTab === "ads" ? (
         <AdsTab onToast={showToast} />
       ) : (

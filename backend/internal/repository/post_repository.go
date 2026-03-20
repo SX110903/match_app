@@ -24,6 +24,10 @@ func (r *postRepository) Create(ctx context.Context, post *domain.Post) error {
 	return err
 }
 
+// GetFeed devuelve posts ordenados por created_at DESC con paginación OFFSET.
+// TODO(perf-v2 BP-6): con inserciones concurrentes, OFFSET provoca duplicados/saltos entre páginas.
+// Migrar a cursor-based: añadir parámetro beforeID y usar WHERE p.id < beforeID ORDER BY p.id DESC LIMIT ?.
+// El frontend debe guardar el ID del último post recibido y pasarlo como cursor en el siguiente fetch.
 func (r *postRepository) GetFeed(ctx context.Context, viewerID string, limit, offset int) ([]domain.Post, error) {
 	ctx, cancel := r.db.WithTimeout(ctx)
 	defer cancel()

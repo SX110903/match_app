@@ -165,6 +165,7 @@ func main() {
 			r.Post("/swipe", matchHandler.Swipe)
 			r.Get("/", matchHandler.GetMatches)
 			r.Get("/{id}", matchHandler.GetMatch)
+			r.Delete("/{id}", matchHandler.DeleteMatch)
 			r.Get("/{matchId}/messages", msgHandler.GetMessages)
 			r.Post("/{matchId}/messages", msgHandler.SendMessage)
 			r.Put("/{matchId}/messages/read", msgHandler.MarkRead)

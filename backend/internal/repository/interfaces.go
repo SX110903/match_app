@@ -100,6 +100,7 @@ type IMatchRepository interface {
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	GetMatchesByUserID(ctx context.Context, userID string) ([]domain.MatchWithProfile, error)
 	GetCandidates(ctx context.Context, userID string, prefs *domain.UserPreferences, limit, offset int) ([]domain.Candidate, error)
+	DeleteMatch(ctx context.Context, matchID, userID string) error
 }
 
 type IPostRepository interface {

@@ -51,6 +51,10 @@ func (m *mockMatchRepo) GetCandidates(_ context.Context, _ string, _ *domain.Use
 	return nil, nil
 }
 
+func (m *mockMatchRepo) DeleteMatch(_ context.Context, _, _ string) error {
+	return nil
+}
+
 // ---- mock IProfileRepository (mínimo) ----
 
 type mockProfileRepoForMatch struct {
