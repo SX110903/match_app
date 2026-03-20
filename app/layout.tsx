@@ -41,9 +41,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background">
         <AuthProvider>
           <ErrorBoundary>
-            <div className="max-w-[430px] mx-auto h-screen relative overflow-hidden">
-              {children}
-            </div>
+            {children}
           </ErrorBoundary>
         </AuthProvider>
         <Analytics />

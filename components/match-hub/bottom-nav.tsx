@@ -24,7 +24,7 @@ export function BottomNav({ activeTab, onTabChange, unreadMessages = 0, newMatch
   ]
 
   return (
-    <nav className="absolute bottom-0 left-0 right-0 bg-card border-t border-border safe-area-inset-bottom z-50">
+    <nav className="bg-card border-t border-border safe-area-inset-bottom z-50">
       <div className="flex items-center justify-around py-2 px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon

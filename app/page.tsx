@@ -3,7 +3,9 @@
 import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence } from "framer-motion"
+import { MessageCircle } from "lucide-react"
 import { BottomNav, TabType } from "@/components/match-hub/bottom-nav"
+import { SidebarNav } from "@/components/match-hub/sidebar-nav"
 import { SwipeCard } from "@/components/match-hub/swipe-card"
 import { ActionButtons } from "@/components/match-hub/action-buttons"
 import { ProfileModal } from "@/components/match-hub/profile-modal"
@@ -105,9 +107,9 @@ export default function MatchHub() {
   const [showAdmin, setShowAdmin] = useState(false)
   const [showShop, setShowShop] = useState(false)
   const [myPhoto, setMyPhoto] = useState<string | undefined>(undefined)
-  const [appToast, setAppToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
+  const [appToast, setAppToast] = useState<{ msg: string; type: "error" | "success" } | null>(null)
 
-  const showToast = (msg: string, type: 'error' | 'success' = 'error') => {
+  const showToast = (msg: string, type: "error" | "success" = "error") => {
     setAppToast({ msg, type })
     setTimeout(() => setAppToast(null), 3500)
   }
@@ -128,7 +130,7 @@ export default function MatchHub() {
         setMatches((apiMatches ?? []).map(apiMatchToMatch))
         if (me?.photos?.length) setMyPhoto(me.photos[0].url)
       } catch {
-        showToast('Error cargando perfiles.')
+        showToast("Error cargando perfiles.")
       } finally {
         setLoadingCandidates(false)
       }
@@ -161,14 +163,18 @@ export default function MatchHub() {
               ...prev,
             ])
           }
-        } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
+        } catch {
+          showToast("No se pudo registrar. Inténtalo de nuevo.")
+        }
       } else {
         try {
           await apiClient("/api/v1/matches/swipe", {
             method: "POST",
             body: { user_id: currentProfile.id, direction: "left" },
           })
-        } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
+        } catch {
+          showToast("No se pudo registrar. Inténtalo de nuevo.")
+        }
       }
     },
     [currentProfile]
@@ -199,7 +205,9 @@ export default function MatchHub() {
           ...prev,
         ])
       }
-    } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
+    } catch {
+      showToast("No se pudo registrar. Inténtalo de nuevo.")
+    }
   }, [currentProfile])
 
   const handleUndo = () => {
@@ -219,6 +227,12 @@ export default function MatchHub() {
     }
   }
 
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab)
+    // On mobile, going back to messages list clears the selected chat
+    if (tab !== "messages") setSelectedMatch(null)
+  }
+
   const unreadMessages = matches.filter((m) => m.unread).length
   const newMatchCount = matches.filter((m) => !m.lastMessage).length
 
@@ -230,7 +244,7 @@ export default function MatchHub() {
 
   if (isLoading || !user) {
     return (
-      <div className="flex h-full items-center justify-center bg-background">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -240,125 +254,159 @@ export default function MatchHub() {
   if (showSettings) {
     return <SettingsView onClose={() => setShowSettings(false)} />
   }
-
   if (showAdmin && user.is_admin) {
     return <AdminView onClose={() => setShowAdmin(false)} />
   }
-
   if (showShop) {
     return <ShopView onClose={() => setShowShop(false)} />
   }
 
-  // Chat detail
-  if (selectedMatch) {
-    return (
-      <ChatView
-        match={selectedMatch}
-        currentUserId={user.id}
-        onBack={() => setSelectedMatch(null)}
-      />
-    )
+  const navProps = {
+    activeTab,
+    onTabChange: handleTabChange,
+    unreadMessages,
+    newMatches: newMatchCount,
+    userPhoto: myPhoto ?? `${AVATAR_BASE}?u=${user?.id}`,
+    userName: user?.name,
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <main className="flex-1 overflow-hidden">
-        <AnimatePresence mode="wait">
-          {activeTab === "home" && (
-            <div key="home" className="h-full">
-              <InicioView />
-            </div>
-          )}
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop sidebar — hidden on mobile */}
+      <SidebarNav {...navProps} />
 
-          {activeTab === "news" && (
-            <div key="news" className="h-full">
-              <NoticiasView />
-            </div>
-          )}
-
-          {activeTab === "discover" && (
-            <div key="discover" className="flex flex-col h-full">
-              {/* Discover header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-                <h1 className="text-lg font-bold text-card-foreground">Citas</h1>
+      {/* Main column */}
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+        <main className="flex-1 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {/* ── Inicio ── */}
+            {activeTab === "home" && (
+              <div key="home" className="h-full overflow-y-auto">
+                <InicioView />
               </div>
+            )}
 
-              <div className="flex-1 relative p-4 overflow-hidden">
-                {loadingCandidates ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : currentProfile ? (
-                  <div className="relative w-full h-full max-w-md mx-auto">
-                    <SwipeCard
-                      key={currentProfile.id}
-                      profile={currentProfile}
-                      onSwipe={handleSwipe}
-                      onInfoClick={() => setShowProfileModal(true)}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                    <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <span className="text-4xl">🔍</span>
+            {/* ── Noticias ── */}
+            {activeTab === "news" && (
+              <div key="news" className="h-full overflow-y-auto">
+                <NoticiasView />
+              </div>
+            )}
+
+            {/* ── Citas / Discover ── */}
+            {activeTab === "discover" && (
+              <div key="discover" className="flex flex-col h-full">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+                  <h1 className="text-lg font-bold text-card-foreground">Citas</h1>
+                </div>
+
+                <div className="flex-1 relative overflow-hidden">
+                  {loadingCandidates ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                     </div>
-                    <h2 className="text-xl font-semibold text-card-foreground mb-2">
-                      No hay más perfiles
-                    </h2>
-                    <p className="text-muted-foreground">
-                      Vuelve más tarde para ver nuevas personas
-                    </p>
+                  ) : currentProfile ? (
+                    /* Card centered: 430px on mobile, up to 500px on desktop */
+                    <div className="relative w-full h-full max-w-[500px] mx-auto p-4">
+                      <SwipeCard
+                        key={currentProfile.id}
+                        profile={currentProfile}
+                        onSwipe={handleSwipe}
+                        onInfoClick={() => setShowProfileModal(true)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <span className="text-4xl">🔍</span>
+                      </div>
+                      <h2 className="text-xl font-semibold text-card-foreground mb-2">
+                        No hay más perfiles
+                      </h2>
+                      <p className="text-muted-foreground">
+                        Vuelve más tarde para ver nuevas personas
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {currentProfile && (
+                  <div className="pb-4 pt-4">
+                    <ActionButtons
+                      onLike={handleLike}
+                      onDislike={handleDislike}
+                      onSuperLike={handleSuperLike}
+                      onUndo={handleUndo}
+                      canUndo={swipeHistory.length > 0}
+                    />
                   </div>
                 )}
               </div>
+            )}
 
-              {currentProfile && (
-                <div className="pb-24 pt-4">
-                  <ActionButtons
-                    onLike={handleLike}
-                    onDislike={handleDislike}
-                    onSuperLike={handleSuperLike}
-                    onUndo={handleUndo}
-                    canUndo={swipeHistory.length > 0}
+            {/* ── Mensajes — split view on desktop ── */}
+            {activeTab === "messages" && (
+              <div key="messages" className="flex h-full">
+                {/* Matches list — always on desktop; hidden on mobile when chat open */}
+                <div
+                  className={`flex flex-col shrink-0 border-r border-border
+                    ${selectedMatch ? "hidden md:flex md:w-[360px]" : "flex w-full md:w-[360px]"}`}
+                >
+                  <MatchesList
+                    matches={matches}
+                    onSelectMatch={setSelectedMatch}
+                    onMatchDeleted={(id) => {
+                      setMatches((prev) => prev.filter((m) => m.id !== id))
+                      if (selectedMatch?.id === id) setSelectedMatch(null)
+                    }}
                   />
                 </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === "messages" && (
-            <div key="messages" className="h-full">
-              <MatchesList matches={matches} onSelectMatch={setSelectedMatch} />
-            </div>
-          )}
+                {/* Chat panel */}
+                {selectedMatch ? (
+                  <div className="flex-1 min-w-0">
+                    <ChatView
+                      match={selectedMatch}
+                      currentUserId={user.id}
+                      onBack={() => setSelectedMatch(null)}
+                    />
+                  </div>
+                ) : (
+                  <div className="hidden md:flex flex-1 items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-25" />
+                      <p className="text-sm">Selecciona un match para chatear</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-          {activeTab === "profile" && (
-            <div key="profile" className="h-full">
-              <ProfileView
-                onOpenSettings={() => setShowSettings(true)}
-                onOpenAdmin={user.is_admin ? () => setShowAdmin(true) : undefined}
-                onOpenShop={() => setShowShop(true)}
-              />
-            </div>
-          )}
-        </AnimatePresence>
-      </main>
+            {/* ── Perfil ── */}
+            {activeTab === "profile" && (
+              <div key="profile" className="h-full overflow-y-auto">
+                <ProfileView
+                  onOpenSettings={() => setShowSettings(true)}
+                  onOpenAdmin={user.is_admin ? () => setShowAdmin(true) : undefined}
+                  onOpenShop={() => setShowShop(true)}
+                />
+              </div>
+            )}
+          </AnimatePresence>
+        </main>
 
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        unreadMessages={unreadMessages}
-        newMatches={newMatchCount}
-        userPhoto={myPhoto ?? `${AVATAR_BASE}?u=${user?.id}`}
-        userName={user?.name}
-      />
+        {/* Mobile bottom nav — hidden on desktop */}
+        <div className="md:hidden">
+          <BottomNav {...navProps} />
+        </div>
+      </div>
 
+      {/* Modals */}
       <ProfileModal
         profile={currentProfile}
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
       />
-
       <MatchModal
         profile={matchedProfile}
         isOpen={showMatchModal}
@@ -368,7 +416,11 @@ export default function MatchHub() {
       />
 
       {appToast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg max-w-[320px] text-center ${appToast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg max-w-[320px] text-center ${
+            appToast.type === "error" ? "bg-red-500" : "bg-green-500"
+          }`}
+        >
           {appToast.msg}
         </div>
       )}
