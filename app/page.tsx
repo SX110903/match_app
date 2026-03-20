@@ -19,7 +19,7 @@ import { ShopView } from "@/components/match-hub/shop-view"
 import { Profile, Match } from "@/lib/types"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
-import { AVATAR_BASE } from "@/lib/constants"
+import { AVATAR_BASE, CANDIDATES_LIMIT } from "@/lib/constants"
 
 interface APICandidate {
   profile: {
@@ -105,6 +105,12 @@ export default function MatchHub() {
   const [showAdmin, setShowAdmin] = useState(false)
   const [showShop, setShowShop] = useState(false)
   const [myPhoto, setMyPhoto] = useState<string | undefined>(undefined)
+  const [appToast, setAppToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
+
+  const showToast = (msg: string, type: 'error' | 'success' = 'error') => {
+    setAppToast({ msg, type })
+    setTimeout(() => setAppToast(null), 3500)
+  }
 
   const currentProfile = profiles[currentIndex]
 
@@ -114,7 +120,7 @@ export default function MatchHub() {
       setLoadingCandidates(true)
       try {
         const [candidates, apiMatches, me] = await Promise.all([
-          apiClient<APICandidate[]>("/api/v1/matches/candidates?limit=20"),
+          apiClient<APICandidate[]>(`/api/v1/matches/candidates?limit=${CANDIDATES_LIMIT}`),
           apiClient<APIMatch[]>("/api/v1/matches/"),
           apiClient<{ photos: { url: string }[] }>("/api/v1/users/me"),
         ])
@@ -122,7 +128,7 @@ export default function MatchHub() {
         setMatches((apiMatches ?? []).map(apiMatchToMatch))
         if (me?.photos?.length) setMyPhoto(me.photos[0].url)
       } catch {
-        // silent — user sees empty state
+        showToast('Error cargando perfiles.')
       } finally {
         setLoadingCandidates(false)
       }
@@ -155,14 +161,14 @@ export default function MatchHub() {
               ...prev,
             ])
           }
-        } catch { /* silent */ }
+        } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
       } else {
         try {
           await apiClient("/api/v1/matches/swipe", {
             method: "POST",
             body: { user_id: currentProfile.id, direction: "left" },
           })
-        } catch { /* silent */ }
+        } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
       }
     },
     [currentProfile]
@@ -193,7 +199,7 @@ export default function MatchHub() {
           ...prev,
         ])
       }
-    } catch { /* silent */ }
+    } catch { showToast('No se pudo registrar. Inténtalo de nuevo.') }
   }, [currentProfile])
 
   const handleUndo = () => {
@@ -360,6 +366,12 @@ export default function MatchHub() {
         onSendMessage={handleSendMessageFromMatch}
         currentUserPhoto={myPhoto ?? `${AVATAR_BASE}?u=${user?.id}`}
       />
+
+      {appToast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm font-medium text-white shadow-lg max-w-[320px] text-center ${appToast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+          {appToast.msg}
+        </div>
+      )}
     </div>
   )
 }

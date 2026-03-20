@@ -123,6 +123,11 @@ func (h *AdminHandler) AdjustCredits(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "invalid request body")
 		return
 	}
+	const maxCreditsDelta = 10000
+	if req.Delta > maxCreditsDelta || req.Delta < -maxCreditsDelta {
+		response.BadRequest(w, "delta must be between -10000 and 10000")
+		return
+	}
 	if err := h.adminSvc.AdjustCredits(r.Context(), claims.Subject, req.UserID, req.Delta); err != nil {
 		switch err {
 		case domain.ErrForbidden:

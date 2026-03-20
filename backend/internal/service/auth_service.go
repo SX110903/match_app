@@ -1,16 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"image/png"
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +18,7 @@ import (
 	"github.com/SX110903/match_app/backend/internal/domain"
 	"github.com/SX110903/match_app/backend/internal/email"
 	"github.com/SX110903/match_app/backend/internal/repository"
+	"github.com/SX110903/match_app/backend/pkg/logger"
 )
 
 type authService struct {
@@ -76,7 +76,7 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) error {
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		// MySQL 1062: Duplicate entry — concurrent registration race
-		if strings.Contains(err.Error(), "1062") || strings.Contains(err.Error(), "Duplicate entry") {
+		if repository.IsDuplicateEntry(err) {
 			return domain.ErrConflict
 		}
 		return fmt.Errorf("creating user: %w", err)
@@ -102,10 +102,14 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) error {
 	}
 
 	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.Security.FrontendURL, token)
-	if err := s.emailSvc.SendVerificationEmail(ctx, req.Email, req.Name, verifyURL); err != nil {
-		// Non-fatal: log but don't fail registration
-		_ = err
-	}
+	userID := user.ID
+	userName := req.Name
+	userEmail := req.Email
+	go func() {
+		if err := s.emailSvc.SendVerificationEmail(context.Background(), userEmail, userName, verifyURL); err != nil {
+			logger.Error().Err(err).Str("user_id", userID).Msg("verification email failed")
+		}
+	}()
 
 	return nil
 }

@@ -87,7 +87,7 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	authHandler := handler.NewAuthHandler(authSvc, cfg)
+	authHandler := handler.NewAuthHandler(authSvc, cfg, redisClient)
 	userHandler := handler.NewUserHandler(userSvc)
 	matchHandler := handler.NewMatchHandler(matchSvc)
 	msgHandler := handler.NewMessageHandler(msgSvc, hub)
@@ -98,7 +98,7 @@ func main() {
 	badgeHandler := handler.NewBadgeHandler(badgeSvc)
 	shopHandler := handler.NewShopHandler(shopSvc)
 	adHandler := handler.NewAdHandler(adSvc)
-	wsHandler := handler.NewWSHandler(hub, jwtSvc, blacklist, msgSvc, matchSvc)
+	wsHandler := handler.NewWSHandler(hub, redisClient, msgSvc, matchSvc)
 
 	r := chi.NewRouter()
 
@@ -118,13 +118,14 @@ func main() {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.With(middleware.NewEndpointRateLimiter(redisClient, "register", 3, time.Hour)).
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "register", cfg.Security.RateLimitRegister, time.Hour)).
 				Post("/register", authHandler.Register)
-			r.With(middleware.NewEndpointRateLimiter(redisClient, "login", 5, 15*time.Minute)).
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "login", cfg.Security.RateLimitLogin, 15*time.Minute)).
 				Post("/login", authHandler.Login)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "login_2fa", 10, 5*time.Minute)).
 				Post("/login/2fa", authHandler.LoginWith2FA)
-			r.With(middleware.RequireAuth(jwtSvc, blacklist)).Post("/logout", authHandler.Logout)
+			r.With(middleware.NewEndpointRateLimiter(redisClient, "logout", cfg.Security.RateLimitLogout, time.Minute)).
+				With(middleware.RequireAuth(jwtSvc, blacklist)).Post("/logout", authHandler.Logout)
 			r.Post("/refresh", authHandler.RefreshToken)
 			r.Post("/verify-email", authHandler.VerifyEmail)
 			r.With(middleware.NewEndpointRateLimiter(redisClient, "forgot_password", 3, time.Hour)).
@@ -148,6 +149,8 @@ func main() {
 			r.Get("/{id}/followers", badgeHandler.GetFollowers)
 			r.Get("/{id}/following", badgeHandler.GetFollowing)
 		})
+
+		r.With(authRequired).Post("/auth/ws-ticket", authHandler.WSTicket)
 
 		r.Route("/auth/2fa", func(r chi.Router) {
 			r.Use(authRequired)

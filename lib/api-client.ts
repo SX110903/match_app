@@ -40,7 +40,16 @@ async function doRequest(path: string, opts: RequestOptions = {}): Promise<Respo
   return res
 }
 
+// Singleton promise — garantiza que solo se ejecuta 1 refresh aunque haya N requests en vuelo
+let _refreshPromise: Promise<boolean> | null = null
+
 async function tryRefresh(): Promise<boolean> {
+  if (_refreshPromise) return _refreshPromise
+  _refreshPromise = _doRefresh().finally(() => { _refreshPromise = null })
+  return _refreshPromise
+}
+
+async function _doRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
       method: 'POST',

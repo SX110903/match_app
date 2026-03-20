@@ -42,6 +42,9 @@ function EditProfileModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
 
   const handleSave = async () => {
     if (!name.trim()) { setError("El nombre es obligatorio"); return }
+    if (name.trim().length < 2) { setError("El nombre debe tener al menos 2 caracteres"); return }
+    if (bio.length > 500) { setError("La bio no puede superar 500 caracteres"); return }
+    if (occupation.length > 100) { setError("La ocupación no puede superar 100 caracteres"); return }
     setSaving(true)
     setError("")
     try {
